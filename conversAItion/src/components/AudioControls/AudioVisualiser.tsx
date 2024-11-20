@@ -8,7 +8,10 @@ interface AudioVisualiserProps {
 export const AudioVisualiser: React.FC<AudioVisualiserProps> = ({ canvasRef }) => {
   return (
     <div style={audioControlStyles.visualizer}>
-      <canvas ref={canvasRef} width={100} height={40} />
+      <canvas 
+        ref={canvasRef} 
+        style={{ width: '100%', height: '100%' }}
+      />
     </div>
   );
 };

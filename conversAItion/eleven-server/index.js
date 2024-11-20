@@ -6,21 +6,17 @@ import fetch from 'node-fetch';
 dotenv.config();
 
 const app = express();
-const port = process.env.ELEVEN_SERVER_PORT || 3001;
+const port = process.env.PORT || 3001;
 const AGENT_ID = 'TaDOThYRtPGeAcPDnfys';
 
 // Configure CORS to allow requests from your Vercel domains
 const corsOptions = {
-  origin: [
-    'https://conversation-v0-4wr2mpihp-adamm0019s-projects.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
-  methods: ['GET', 'POST', 'OPTIONS'],
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
+  credentials: false // Set to true if your app needs to send cookies or Authorization headers
 };
+
 
 app.use(cors(corsOptions));
 app.use(express.json());
