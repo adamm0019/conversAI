@@ -1,0 +1,58 @@
+{
+  "name": "conversaition",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "start": "node server.js",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@11labs/react": "^0.0.2",
+    "@clerk/clerk-react": "^5.16.0",
+    "@emotion/react": "^11.11.0",
+    "@mantine/charts": "^7.3.2",
+    "@mantine/core": "^7.3.2",
+    "@mantine/hooks": "^7.3.2",
+    "@mantine/notifications": "^7.3.2",
+    "@mantine/styles": "6.0.22",
+    "@tabler/icons-react": "^3.22.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "elevenlabs-node": "^2.0.3",
+    "express": "^4.18.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-feather": "^2.0.10",
+    "react-infinite-scroll-component": "^6.1.0",
+    "react-router-dom": "^6.28.0",
+    "recharts": "^2.13.3",
+    "typescript": "~5.3.3",
+    "vite": "^5.0.10",
+    "web-vitals": "^2.1.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@mantine/styles": "6.0.22",
+    "@types/node": "^16.18.108",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@types/ws": "^8.5.10",
+    "eslint": "^9.13.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "globals": "^15.11.0",
+    "postcss": "^8.4.32",
+    "postcss-preset-mantine": "^1.12.3",
+    "postcss-simple-vars": "^7.0.1",
+    "sass-embedded": "^1.69.5"
+  }
+}
