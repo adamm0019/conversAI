@@ -5,13 +5,13 @@ FROM node:18-slim
 WORKDIR /app
 
 # Copy package files
-COPY conversAItion/package*.json ./
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy app source
-COPY conversAItion/ .
+COPY . .
 
 # Build the app
 RUN npm run build
