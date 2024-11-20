@@ -13,9 +13,8 @@ RUN npm install --legacy-peer-deps
 # Copy app source
 COPY . .
 
-# Set environment variables for build time
-ARG VITE_CLERK_PUBLISHABLE_KEY
-ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+# Create .env file from environment variable
+RUN echo "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY" > .env
 
 # Build the app
 RUN npm run build

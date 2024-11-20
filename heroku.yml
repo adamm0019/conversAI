@@ -1,8 +1,5 @@
 build:
   docker:
-    web:
-      dockerfile: Dockerfile
-      args:
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+    web: Dockerfile
 run:
   web: npm start
