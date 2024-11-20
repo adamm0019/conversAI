@@ -1,26 +1,14 @@
 import React from 'react';
-import { Box } from '@mantine/core';
-import { useStyles } from './styles';
+import { audioControlStyles } from './styles';
 
-interface AudioVisualizerProps {
-  clientCanvasRef: React.RefObject<HTMLCanvasElement>;
-  serverCanvasRef: React.RefObject<HTMLCanvasElement>;
+interface AudioVisualiserProps {
+  canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
-export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
-  clientCanvasRef,
-  serverCanvasRef,
-}) => {
-  const { classes } = useStyles();
-
+export const AudioVisualiser: React.FC<AudioVisualiserProps> = ({ canvasRef }) => {
   return (
-    <Box mb="md" h={60}>
-      <Box h="45%" mb={4}>
-        <canvas ref={clientCanvasRef} style={{ width: '100%', height: '100%' }} />
-      </Box>
-      <Box h="45%">
-        <canvas ref={serverCanvasRef} style={{ width: '100%', height: '100%' }} />
-      </Box>
-    </Box>
+    <div style={audioControlStyles.visualizer}>
+      <canvas ref={canvasRef} width={100} height={40} />
+    </div>
   );
 };

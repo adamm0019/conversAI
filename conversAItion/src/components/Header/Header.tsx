@@ -1,17 +1,17 @@
 import React from 'react';
-import { Group, Text, Select, Badge, ActionIcon, Tooltip, Container, rem, useMantineColorScheme, Menu, Box } from '@mantine/core';
+import { Group, ActionIcon, Tooltip, Container, rem, useMantineColorScheme, Menu, Box, Button, Popover, Stack, Text } from '@mantine/core';
 import { 
-  IconVolume, 
-  IconBrain, 
-  IconSettings, 
+  IconBrain,
+  IconSettings,
   IconHistory,
-  IconVocabulary,
   IconChartBar,
-  IconBook2,
-  IconLanguage,
   IconSun,
   IconMoon,
-  IconMenu2
+  IconMenu2,
+  IconRobot,
+  IconBulb,
+  IconSchool,
+  IconFriends
 } from '@tabler/icons-react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import { Link } from 'react-router-dom';
@@ -21,33 +21,49 @@ import conversationLogoDark from '../../assets/conversationlogodarkmode.svg';
 import conversationLogoLight from '../../assets/conversationlogolightmode.svg';
 
 interface HeaderProps {
-  selectedLanguage: string;
-  onLanguageChange: (value: string | null) => void;
+  selectedMode: string;
+  onModeChange: (value: string) => void;
   onResetAPIKey: () => void;
   showSettings: boolean;
 }
 
-const languages = [
-  { value: 'es', label: 'Spanish', flag: '🇪🇸' },
-  { value: 'fr', label: 'French', flag: '🇫🇷' },
-  { value: 'de', label: 'German', flag: '🇩🇪' },
-  { value: 'it', label: 'Italian', flag: '🇮🇹' },
-  { value: 'pt', label: 'Portuguese', flag: '🇵🇹' },
+const conversationModes = [
+  {
+    id: 'tutor',
+    icon: IconSchool,
+    label: 'Language Tutor',
+    description: 'Structured learning with a patient teacher',
+  },
+  {
+    id: 'friend',
+    icon: IconFriends,
+    label: 'Friendly Chat',
+    description: 'Casual conversation with a native speaker',
+  },
+  {
+    id: 'expert',
+    icon: IconBulb,
+    label: 'Expert Mode',
+    description: 'Advanced discussions on specific topics',
+  },
 ];
 
 export const Header: React.FC<HeaderProps> = ({
-  selectedLanguage,
-  onLanguageChange,
+  selectedMode,
+  onModeChange,
   onResetAPIKey,
   showSettings,
 }) => {
   const [settingsOpened, setSettingsOpened] = React.useState(false);
-  const [mobileMenuOpened, setMobileMenuOpened] = React.useState(false);
+  const [modePopoverOpened, setModePopoverOpened] = React.useState(false);
   const { colorScheme, setColorScheme } = useMantineColorScheme();
 
   const toggleColorScheme = () => {
     setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
   };
+
+  const selectedModeInfo = conversationModes.find(mode => mode.id === selectedMode);
+  const ModeIcon = selectedModeInfo?.icon || IconRobot;
 
   const MobileMenu = () => (
     <Menu shadow="md" width={200}>
@@ -63,16 +79,16 @@ export const Header: React.FC<HeaderProps> = ({
       </Menu.Target>
 
       <Menu.Dropdown>
-        <Menu.Label>Practice</Menu.Label>
-        <Menu.Item leftSection={<IconVolume size={14} />}>
-          Pronunciation
-        </Menu.Item>
-        <Menu.Item leftSection={<IconVocabulary size={14} />}>
-          Vocabulary
-        </Menu.Item>
-        <Menu.Item leftSection={<IconBook2 size={14} />}>
-          Grammar
-        </Menu.Item>
+        <Menu.Label>Conversation Modes</Menu.Label>
+        {conversationModes.map(mode => (
+          <Menu.Item
+            key={mode.id}
+            leftSection={<mode.icon size={14} />}
+            onClick={() => onModeChange(mode.id)}
+          >
+            {mode.label}
+          </Menu.Item>
+        ))}
 
         <Menu.Divider />
 
@@ -133,107 +149,53 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                 </Link>
               </Box>
-              <Select
-                size="md"
-                w={{ base: 120, sm: 180 }}
-                value={selectedLanguage}
-                onChange={onLanguageChange}
-                leftSection={<IconLanguage size={16} />}
-                data={languages.map(lang => ({
-                  value: lang.value,
-                  label: `${lang.flag} ${lang.label}`
-                }))}
-                styles={{
-                  root: headerStyles.languageSelect,
-                  input: {
-                    backgroundColor: 'var(--mantine-color-dark-6)',
-                    borderColor: 'var(--mantine-color-dark-4)',
-                    height: '42px',
-                    fontSize: '1rem',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: 'var(--mantine-color-blue-4)',
-                    },
-                    '&:focus': {
-                      borderColor: 'var(--mantine-color-blue-5)',
-                      boxShadow: '0 0 0 2px rgba(51, 154, 240, 0.1)',
-                    },
-                  },
-                  section: {
-                    color: 'var(--mantine-color-blue-4)',
-                  },
-                  dropdown: {
-                    border: '1px solid var(--mantine-color-dark-4)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                  },
-                  option: {
-                    transition: 'background-color 0.2s ease',
-                    '&[dataSelected]': {
-                      backgroundColor: 'var(--mantine-color-blue-7)',
-                    },
-                    '&[dataHovered]': {
-                      backgroundColor: 'var(--mantine-color-dark-5)',
-                    },
-                  },
-                }}
-              />
-              <Box visibleFrom="sm">
-                <Badge
-                  variant="dot" 
-                  color="blue" 
-                  size="lg"
-                  style={{
-                    ...headerStyles.proficiencyBadge,
-                    height: '42px',
-                    padding: '0 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    fontSize: '0.95rem',
-                    textTransform: 'none',
-                    border: 'none',
-                  }}
-                >
-                  Intermediate
-                </Badge>
+
+              <Box visibleFrom="sm" style={{ minWidth: '400px' }}>
+                <Group>
+                  <Popover
+                    opened={modePopoverOpened}
+                    onChange={setModePopoverOpened}
+                    position="bottom"
+                    width={300}
+                  >
+                    <Popover.Target>
+                      <Button
+                        variant="light"
+                        leftSection={<ModeIcon size={16} />}
+                        onClick={() => setModePopoverOpened(true)}
+                      >
+                        {selectedModeInfo?.label || 'Select Mode'}
+                      </Button>
+                    </Popover.Target>
+                    <Popover.Dropdown>
+                      <Stack>
+                        {conversationModes.map(mode => (
+                          <Button
+                            key={mode.id}
+                            variant={selectedMode === mode.id ? 'filled' : 'subtle'}
+                            leftSection={<mode.icon size={16} />}
+                            onClick={() => {
+                              onModeChange(mode.id);
+                              setModePopoverOpened(false);
+                            }}
+                            fullWidth
+                          >
+                            <Stack gap={0} align="flex-start">
+                              <Text>{mode.label}</Text>
+                              <Text size="xs" c="dimmed">{mode.description}</Text>
+                            </Stack>
+                          </Button>
+                        ))}
+                      </Stack>
+                    </Popover.Dropdown>
+                  </Popover>
+                </Group>
               </Box>
             </Group>
 
             <Group gap="sm">
               <Box visibleFrom="md">
                 <Group gap="sm">
-                  <Tooltip label="Pronunciation Practice">
-                    <ActionIcon 
-                      variant="subtle" 
-                      color="blue" 
-                      size="lg"
-                      style={headerStyles.actionButton}
-                    >
-                      <IconVolume style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
-                    </ActionIcon>
-                  </Tooltip>
-
-                  <Tooltip label="Vocabulary">
-                    <ActionIcon 
-                      variant="subtle" 
-                      color="blue" 
-                      size="lg"
-                      style={headerStyles.actionButton}
-                    >
-                      <IconVocabulary style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
-                    </ActionIcon>
-                  </Tooltip>
-
-                  <Tooltip label="Grammar Lessons">
-                    <ActionIcon 
-                      variant="subtle" 
-                      color="blue" 
-                      size="lg"
-                      style={headerStyles.actionButton}
-                    >
-                      <IconBook2 style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
-                    </ActionIcon>
-                  </Tooltip>
-
                   <Tooltip label="Progress Stats">
                     <Link to="/statistics">
                       <ActionIcon 
@@ -247,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </Link>
                   </Tooltip>
 
-                  <Tooltip label="Learning History">
+                  <Tooltip label="Chat History">
                     <ActionIcon 
                       variant="subtle" 
                       color="blue" 

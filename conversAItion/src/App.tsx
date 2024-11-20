@@ -9,19 +9,19 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 function App() {
   return (
-    <BrowserRouter>
-      <MantineProvider
-        theme={theme}
-        defaultColorScheme="dark"
-      >
-        <Notifications position="top-right"/>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/statistics" element={<Statistics />} />
-        </Routes>
-      </MantineProvider>
-    </BrowserRouter>
-  );
+      <BrowserRouter>
+        <MantineProvider
+          theme={theme}
+          defaultColorScheme="dark"
+        >
+          <Notifications position="top-right" />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/statistics" element={<Statistics />} />
+          </Routes>
+        </MantineProvider>
+      </BrowserRouter>
+      );
 }
 
-export default App;
+      export default App;

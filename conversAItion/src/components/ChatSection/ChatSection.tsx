@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Stack, Group, Text, Transition, Box, Loader, Center, TextInput, ActionIcon } from '@mantine/core';
-import { IconMicrophone, IconPlayerStop, IconPaperclip, IconArrowUp } from '@tabler/icons-react';
+import { IconMicrophone, IconPlayerStop, IconPaperclip, IconArrowUp, IconPlugConnected } from '@tabler/icons-react';
 import { chatSectionStyles, pulseAnimation, slideIn } from './styles';
 import { MessageBubble } from './MessageBubble';
 import { EnhancedConversationItem } from '../../types/conversation';
@@ -14,6 +14,7 @@ interface ChatSectionProps {
   onStopRecording: (() => Promise<void>) | (() => void);
   onDisconnect: (() => Promise<void>) | (() => void);
   onConnect: (() => Promise<void>) | (() => void);
+  onSendMessage: (message: string) => Promise<void>;
   clientCanvasRef: React.RefObject<HTMLCanvasElement>;
   serverCanvasRef: React.RefObject<HTMLCanvasElement>;
 }
@@ -26,13 +27,16 @@ export const ChatSection: React.FC<ChatSectionProps> = ({
   onStopRecording,
   onDisconnect,
   onConnect,
+  onSendMessage,
   clientCanvasRef,
   serverCanvasRef,
 }) => {
   const [mounted, setMounted] = React.useState(false);
   const [message, setMessage] = React.useState('');
+  const [isSending, setIsSending] = React.useState(false);
   const { user } = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,6 +63,41 @@ export const ChatSection: React.FC<ChatSectionProps> = ({
     }
   }, [isConnected, isRecording, onStartRecording, onStopRecording, onConnect]);
 
+  const handleSendMessage = async () => {
+    if (!message.trim() || isSending) return;
+
+    try {
+      setIsSending(true);
+      if (!isConnected) {
+        await onConnect();
+      }
+      await onSendMessage(message);
+      setMessage('');
+      inputRef.current?.focus();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const getIcon = () => {
+    if (isRecording) {
+      return <IconPlayerStop size={20} />;
+    }
+    if (!isConnected) {
+      return <IconPlugConnected size={20} />;
+    }
+    return <IconMicrophone size={20} />;
+  };
+
   return (
     <Stack gap={0} style={{ position: 'relative', flex: 1, width: '100%' }}>
       {/* Chat messages */}
@@ -67,7 +106,7 @@ export const ChatSection: React.FC<ChatSectionProps> = ({
           <Center style={{ height: '100%', flexDirection: 'column', gap: '1rem', width: '100%', padding: '0 1rem' }}>
             <Text size="xl" fw={600} c="dimmed">Hi, {user?.firstName}</Text>
             <Text size="sm" c="dimmed" style={{ maxWidth: '600px', textAlign: 'center' }}>
-              Click the microphone button to start recording. Click again to stop and send your message. I'll help you practice your conversation skills.
+              Click the connect button to start. You can type a message or use the microphone to record. I'll help you practice your conversation skills.
             </Text>
           </Center>
         ) : (
@@ -183,9 +222,11 @@ export const ChatSection: React.FC<ChatSectionProps> = ({
                 </Box>
                 
                 <TextInput
+                  ref={inputRef}
                   placeholder="Type a message..."
                   value={message}
                   onChange={(e) => setMessage(e.currentTarget.value)}
+                  onKeyPress={handleKeyPress}
                   style={{ flex: 1 }}
                   rightSection={
                     <Group gap="xs">
@@ -201,15 +242,20 @@ export const ChatSection: React.FC<ChatSectionProps> = ({
                           touchAction: 'none'
                         }}
                       >
-                        {isRecording ? <IconPlayerStop size={20} /> : <IconMicrophone size={20} />}
+                        {getIcon()}
                       </ActionIcon>
                       <ActionIcon
                         variant="filled"
                         color="blue"
                         size="lg"
-                        disabled={!message.trim()}
+                        disabled={!message.trim() || isSending}
+                        onClick={handleSendMessage}
                       >
-                        <IconArrowUp size={20} />
+                        {isSending ? (
+                          <Loader size="xs" color="white" />
+                        ) : (
+                          <IconArrowUp size={20} />
+                        )}
                       </ActionIcon>
                     </Group>
                   }
