@@ -79,7 +79,6 @@ node index.js
 - **API Integration**: OpenAI Real-time API, ElevenLabs Agent API
 - **Styling**: Mantine Core + framer-motion + Tabler Icons
 
-## Configuration
 
 ## Usage
 
