@@ -86,8 +86,6 @@ src/
 │   └── EventsPanel/
 ├── hooks/
 │   ├── useAudioRecording.ts
-│   ├── useConversation.ts
-│   └── useEventLogging.ts
 ├── types/
 │   └── index.ts
 ├── styles/
