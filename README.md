@@ -1,4 +1,4 @@
-# Language Learning Assistant
+# ConversAI - Realtime AI Language Learning Assistant
 
 An interactive language learning application powered by OpenAI's real-time API, featuring voice-based conversations, real-time transcription, and adaptive learning capabilities.
 
