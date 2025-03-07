@@ -1,3 +1,5 @@
+// reference: https://github.com/openai/openai-realtime-api-beta
+
 import { WebSocketServer } from 'ws';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 

@@ -23,6 +23,8 @@ export interface EnhancedConversationItem {
   status?: 'completed' | 'in_progress' | 'failed';
   created_at: string;
   timestamp: number;
+  isThinking?: boolean;
+  audioUrl?: string;
 }
 
 export interface ConversationMessage {
@@ -37,4 +39,31 @@ export interface ConversationState {
   isConnected: boolean;
   isLoading: boolean;
   isSpeaking: boolean;
+}
+
+export interface ChatSectionProps {
+  items: EnhancedConversationItem[];
+  isConnected: boolean;
+  isRecording: boolean;
+  isInitializing?: boolean;
+  connectionError?: string | null;
+  onStartRecording: () => Promise<void>;
+  onStopRecording: () => Promise<void>;
+  onDisconnect: () => Promise<void>;
+  onConnect: () => Promise<void>;
+  onSendMessage: (message: string) => Promise<void>;
+  clientCanvasRef: React.RefObject<HTMLCanvasElement>;
+  serverCanvasRef: React.RefObject<HTMLCanvasElement>;
+}
+
+// helper type for message bubble with enhanced chat item
+export interface MessageBubbleProps {
+  item: EnhancedConversationItem;
+}
+
+// some types for animations - not used currently
+export interface AnimationStyles {
+  transform?: string;
+  opacity?: number;
+  transition?: string;
 }

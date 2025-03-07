@@ -1,24 +1,28 @@
 import React from 'react';
-import { Group, ActionIcon, Tooltip, Container, rem, useMantineColorScheme, Menu, Box, Button, Popover, Stack, Text } from '@mantine/core';
-import { 
+import { Group, ActionIcon, Tooltip, Container, rem, useMantineColorScheme, Menu, Box, Button, Popover, Stack, Text, Center, RingProgress } from '@mantine/core';
+import {
   IconBrain,
   IconSettings,
   IconHistory,
-  IconChartBar,
-  IconSun,
-  IconMoon,
   IconMenu2,
   IconRobot,
-  IconBulb,
+  IconBooks,
   IconSchool,
-  IconFriends
+  IconFriends,
+  IconDeviceGamepad2,
+  IconLayoutDashboard,
+  IconFlame
 } from '@tabler/icons-react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import { Link } from 'react-router-dom';
 import { headerStyles } from './styles';
 import { SettingsModal } from '../SettingsModal/SettingsModal';
-import conversationLogoDark from '../../assets/conversationlogodarkmode.svg';
-import conversationLogoLight from '../../assets/conversationlogolightmode.svg';
+import { StreakNotification } from '../Streak/StreakNotification';
+import { useStreak } from '../../hooks/useStreak';
+import darkModeLogo from '../../../src/assets/conversationlogodarkmode.svg';
+import lightModeLogo from '../../../src/assets/conversationlogolightmode.svg';
+
+import { motion } from 'framer-motion';
 
 interface HeaderProps {
   selectedMode: string;
@@ -31,20 +35,12 @@ const conversationModes = [
   {
     id: 'tutor',
     icon: IconSchool,
-    label: 'Language Tutor',
-    description: 'Structured learning with a patient teacher',
+    label: 'Tutor',
   },
   {
     id: 'friend',
     icon: IconFriends,
-    label: 'Friendly Chat',
-    description: 'Casual conversation with a native speaker',
-  },
-  {
-    id: 'expert',
-    icon: IconBulb,
-    label: 'Expert Mode',
-    description: 'Advanced discussions on specific topics',
+    label: 'Chat',
   },
 ];
 
@@ -57,13 +53,161 @@ export const Header: React.FC<HeaderProps> = ({
   const [settingsOpened, setSettingsOpened] = React.useState(false);
   const [modePopoverOpened, setModePopoverOpened] = React.useState(false);
   const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const { streakData, showNotification, hideNotification } = useStreak();
 
   const toggleColorScheme = () => {
     setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
   };
 
+  const Logo = () => (
+    <Link to="/">
+      <img
+        src={colorScheme === 'dark' ? darkModeLogo : lightModeLogo}
+        alt="Conversation Logo"
+        style={{
+          height: rem(170),
+          marginRight: rem(8),
+          display: 'block',
+          objectFit: 'contain',
+        }}
+      />
+    </Link>
+  );
+
   const selectedModeInfo = conversationModes.find(mode => mode.id === selectedMode);
   const ModeIcon = selectedModeInfo?.icon || IconRobot;
+
+  const StreakDisplay = () => {
+    const [isHovered, setIsHovered] = React.useState(false);
+    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    return (
+      <Popover
+        opened={isHovered}
+        position="bottom"
+        width={400}
+        shadow="md"
+        withArrow
+        onClose={() => setIsHovered(false)}
+      >
+        <Popover.Target>
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <Group m="xs" style={{ cursor: 'pointer' }}>
+              <RingProgress
+                size={40}
+                thickness={3}
+                sections={[{ value: (streakData.currentStreak / 7) * 100, color: '#64b5f6' }]}
+                label={
+                  <Center>
+                    <IconFlame size={20} color="#64b5f6" />
+                  </Center>
+                }
+              />
+              <motion.div
+                key={streakData.currentStreak}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Text size="sm" fw={500} c="dimmed">
+                  {streakData.currentStreak}
+                </Text>
+              </motion.div>
+            </Group>
+          </motion.div>
+        </Popover.Target>
+        <Popover.Dropdown style={{
+          background: 'rgba(37, 38, 43, 0.75)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        }}>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Group p="md" m="apart" align="center">
+              <Group>
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <IconFlame size={24} color="#64b5f6" />
+                </motion.div>
+                <div>
+                  <Text size="sm" fw={500}>Current streak</Text>
+                  <motion.div
+                    key={streakData.currentStreak}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Text size="xl" c="#64b5f6">{streakData.currentStreak} days</Text>
+                  </motion.div>
+                </div>
+              </Group>
+
+              <Group>
+                <IconFlame size={24} color="#64b5f6" style={{ opacity: 0.7 }} />
+                <div>
+                  <Text size="sm" fw={500}>Highest streak</Text>
+                  <Text size="xl" c="#64b5f6">{streakData.highestStreak} days</Text>
+                </div>
+              </Group>
+
+              <Group>
+                {days.map((day, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Stack m={4} align="center">
+                      <motion.div
+                        animate={{
+                          scale: index < streakData.currentStreak ? [1, 1.1, 1] : 1,
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                      >
+                        <Box
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: index < streakData.currentStreak ? '#64b5f6' : 'rgba(255, 255, 255, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        />
+                      </motion.div>
+                      <Text size="xs" c="dimmed">{day}</Text>
+                    </Stack>
+                  </motion.div>
+                ))}
+              </Group>
+            </Group>
+          </motion.div>
+        </Popover.Dropdown>
+      </Popover>
+    );
+  };
 
   const MobileMenu = () => (
     <Menu shadow="md" width={200}>
@@ -79,6 +223,11 @@ export const Header: React.FC<HeaderProps> = ({
       </Menu.Target>
 
       <Menu.Dropdown>
+        <Menu.Label>Stats</Menu.Label>
+        <Box p="xs">
+          <StreakDisplay />
+        </Box>
+
         <Menu.Label>Conversation Modes</Menu.Label>
         {conversationModes.map(mode => (
           <Menu.Item
@@ -94,24 +243,26 @@ export const Header: React.FC<HeaderProps> = ({
 
         <Menu.Label>Progress</Menu.Label>
         <Menu.Item
-          leftSection={<IconChartBar size={14} />}
+          leftSection={<IconDeviceGamepad2 size={14} />}
           component={Link}
-          to="/statistics"
+          to="/games"
         >
-          Statistics
+          Games
         </Menu.Item>
+
+        <Menu.Item
+          leftSection={<IconLayoutDashboard size={14} />}
+          component={Link}
+          to="/dashboard"
+        >
+          Dashboard
+        </Menu.Item>
+
         <Menu.Item leftSection={<IconHistory size={14} />}>
           History
         </Menu.Item>
 
         <Menu.Divider />
-
-        <Menu.Item
-          leftSection={colorScheme === 'dark' ? <IconSun size={14} /> : <IconMoon size={14} />}
-          onClick={toggleColorScheme}
-        >
-          {colorScheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-        </Menu.Item>
 
         {showSettings && (
           <Menu.Item
@@ -131,27 +282,16 @@ export const Header: React.FC<HeaderProps> = ({
         <Container size="xl">
           <div style={headerStyles.navbarInner}>
             <Group style={headerStyles.languageGroup}>
-              <Box hiddenFrom="sm">
-                <Link to="/">
-                  <img 
-                    src={colorScheme === 'dark' ? conversationLogoDark : conversationLogoLight} 
-                    alt="Conversation Logo" 
-                    style={{...headerStyles.logo, height: rem(120)}}
-                  />
-                </Link>
-              </Box>
               <Box visibleFrom="sm">
+                <Logo />
+              </Box>
+              <Box>
                 <Link to="/">
-                  <img 
-                    src={colorScheme === 'dark' ? conversationLogoDark : conversationLogoLight} 
-                    alt="Conversation Logo" 
-                    style={headerStyles.logo}
-                  />
                 </Link>
               </Box>
 
-              <Box visibleFrom="sm" style={{ minWidth: '400px' }}>
-                <Group>
+              <Box style={{ minWidth: '400px' }}>
+                <Group m="apart">
                   <Popover
                     opened={modePopoverOpened}
                     onChange={setModePopoverOpened}
@@ -172,7 +312,6 @@ export const Header: React.FC<HeaderProps> = ({
                         {conversationModes.map(mode => (
                           <Button
                             key={mode.id}
-                            variant={selectedMode === mode.id ? 'filled' : 'subtle'}
                             leftSection={<mode.icon size={16} />}
                             onClick={() => {
                               onModeChange(mode.id);
@@ -180,39 +319,52 @@ export const Header: React.FC<HeaderProps> = ({
                             }}
                             fullWidth
                           >
-                            <Stack gap={0} align="flex-start">
+                            <Stack gap={1} align="flex-start">
                               <Text>{mode.label}</Text>
-                              <Text size="xs" c="dimmed">{mode.description}</Text>
                             </Stack>
                           </Button>
                         ))}
                       </Stack>
                     </Popover.Dropdown>
                   </Popover>
+                  <StreakDisplay />
                 </Group>
               </Box>
             </Group>
 
             <Group gap="sm">
-              <Box visibleFrom="md">
+              <Box>
                 <Group gap="sm">
-                  <Tooltip label="Progress Stats">
-                    <Link to="/statistics">
-                      <ActionIcon 
-                        variant="subtle" 
-                        color="blue" 
+                  <Tooltip label="Language Games">
+                    <Link to="/games">
+                      <ActionIcon
+                        variant="subtle"
+                        color="blue"
                         size="lg"
                         style={headerStyles.actionButton}
                       >
-                        <IconChartBar style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
+                        <IconDeviceGamepad2 style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
+                      </ActionIcon>
+                    </Link>
+                  </Tooltip>
+
+                  <Tooltip label="Modules">
+                    <Link to="/modules">
+                      <ActionIcon
+                        variant="subtle"
+                        color="blue"
+                        size="lg"
+                        style={headerStyles.actionButton}
+                      >
+                        <IconBooks style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
                       </ActionIcon>
                     </Link>
                   </Tooltip>
 
                   <Tooltip label="Chat History">
-                    <ActionIcon 
-                      variant="subtle" 
-                      color="blue" 
+                    <ActionIcon
+                      variant="subtle"
+                      color="blue"
                       size="lg"
                       style={headerStyles.actionButton}
                     >
@@ -220,35 +372,19 @@ export const Header: React.FC<HeaderProps> = ({
                     </ActionIcon>
                   </Tooltip>
 
-                  <Tooltip label={colorScheme === 'dark' ? 'Light mode' : 'Dark mode'}>
-                    <ActionIcon
-                      variant="subtle"
-                      color="blue"
-                      size="lg"
-                      onClick={toggleColorScheme}
-                      style={headerStyles.actionButton}
-                    >
-                      {colorScheme === 'dark' ? (
-                        <IconSun style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
-                      ) : (
-                        <IconMoon style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
-                      )}
-                    </ActionIcon>
-                  </Tooltip>
-
-                  {showSettings && (
-                    <Tooltip label="Settings">
+                  <Tooltip label="Dashboard">
+                    <Link to="/dashboard">
                       <ActionIcon
                         variant="subtle"
                         color="blue"
                         size="lg"
                         style={headerStyles.actionButton}
-                        onClick={() => setSettingsOpened(true)}
                       >
-                        <IconSettings style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
+                        <IconLayoutDashboard style={{ width: rem(18), height: rem(18) }} stroke={1.5} />
                       </ActionIcon>
-                    </Tooltip>
-                  )}
+                    </Link>
+                  </Tooltip>
+
                 </Group>
               </Box>
 
@@ -257,17 +393,19 @@ export const Header: React.FC<HeaderProps> = ({
               </Box>
 
               <SignedIn>
-                <UserButton 
+                <UserButton
                   afterSignOutUrl={window.location.origin}
                   appearance={{
                     elements: {
-                        avatarBox: {
-                          width: rem(32),
-                          height: rem(32),
-                        }
+                      avatarBox: {
+                        width: rem(32),
+                        height: rem(32),
                       }
-                    }}
-                  />
+                    }
+                  }}
+                  userProfileMode="navigation"
+                  userProfileUrl="/dashboard"
+                />
               </SignedIn>
               <SignedOut>
                 <SignInButton mode="modal">
@@ -291,6 +429,14 @@ export const Header: React.FC<HeaderProps> = ({
         onClose={() => setSettingsOpened(false)}
         onResetAPIKey={onResetAPIKey}
       />
+
+      <StreakNotification
+        streak={streakData.currentStreak}
+        isVisible={showNotification}
+        onHide={hideNotification}
+      />
     </>
   );
 };
+
+export default Header;

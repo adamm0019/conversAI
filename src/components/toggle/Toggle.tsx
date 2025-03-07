@@ -13,7 +13,6 @@ export function Toggle({
   labels?: string[];
   onChange?: (isEnabled: boolean, value: string) => void;
 }) {
-  // Convert string value to boolean based on whether it matches the first value
   const initialValue = typeof defaultValue === 'string'
     ? defaultValue === values?.[0]
     : !!defaultValue;
@@ -26,7 +25,6 @@ export function Toggle({
   const toggleValue = () => {
     const newValue = !value;
     setValue(newValue);
-    // Pass the corresponding string value if values array is provided
     const stringValue = values ? values[newValue ? 0 : 1] : String(newValue);
     onChange(newValue, stringValue);
   };
@@ -46,7 +44,6 @@ export function Toggle({
     }
   }, [value]);
 
-  // Update value when defaultValue changes
   useEffect(() => {
     if (typeof defaultValue === 'string') {
       setValue(defaultValue === values?.[0]);

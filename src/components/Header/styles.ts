@@ -64,13 +64,4 @@ export const headerStyles = {
       transform: 'translateY(-1px)',
     },
   },
-  logo: {
-    height: rem(165),
-    width: 'auto',
-    marginRight: rem(12),
-    transition: 'transform 0.2s ease',
-    '&:hover': {
-      transform: 'scale(1.02)',
-    },
-  },
 };

@@ -7,14 +7,14 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const AGENT_ID = 'TaDOThYRtPGeAcPDnfys';
+const AGENT_ID = 'LclYQZaTV1A9E1fgKwF9';
 
-// Configure CORS to allow requests from your Vercel domains
+// configuring cors
 const corsOptions = {
-  origin: '*', // Allow all origins
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false // Set to true if your app needs to send cookies or Authorization headers
+  credentials: false
 };
 
 
@@ -62,11 +62,10 @@ app.get('/api/get-signed-url', async (req, res) => {
   }
 });
 
-// Pre-flight request handling
 app.options('*', cors(corsOptions));
 
 app.listen(port, () => {
   console.log(`Eleven Labs server listening at http://localhost:${port}`);
-  console.log('Using API key:', process.env.ELEVEN_LABS_API_KEY);
+  console.log('Using API key:', process.env.VITE_ELEVEN_LABS_API_KEY);
   console.log('Using agent ID:', AGENT_ID);
 });

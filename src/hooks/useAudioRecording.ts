@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { notifications } from '@mantine/notifications';
 
+// file reference from: https://github.com/openai/openai-realtime-api-beta
+//
+
 interface AudioRecordingState {
   isRecording: boolean;
   audioData: Int16Array | null;
