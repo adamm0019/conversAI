@@ -6,17 +6,7 @@ import { EnhancedChatSection } from '../components/ChatSection/EnhancedChatSecti
 import { Header } from '../components/Header/Header';
 import { AuthOverlay } from '../components/AuthOverlay/AuthOverlay';
 import { ConnectionState } from '../types/connection';
-
-// Safe environment variable retrieval for Vite
-const getEnvVar = (name: string, defaultValue: string = ''): string => {
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return (import.meta.env[name] as string) || defaultValue;
-  }
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env[name] || defaultValue;
-  }
-  return defaultValue;
-};
+import { notifications } from '@mantine/notifications';
 
 export const Home: React.FC = () => {
     const [selectedMode, setSelectedMode] = useState('tutor');
@@ -41,30 +31,28 @@ export const Home: React.FC = () => {
         getInputAudioLevel,
         getOutputAudioLevel
     } = useEnhancedWebSocketConversation({
-        // Get API key directly from the environment
-        apiKey: import.meta.env.VITE_ELEVEN_LABS_API_KEY || '',
-        agentId: 'TaDOThYRtPGeAcPDnfys',
+        // Agent configuration
+        agentId: 'TaDOThYRtPGeAcPDnfys', // Your ElevenLabs agent ID
+        apiKey: import.meta.env.VITE_ELEVEN_LABS_API_KEY,
         autoReconnect: true,
         onMessageReceived: (message) => {
             console.log("Message received in hook callback:", message);
         }
     });
-    
-    // Log environment variables to help debug
-    useEffect(() => {
-        console.log('Environment variables check:');
-        console.log('VITE_ELEVEN_LABS_API_KEY present:', !!import.meta.env.VITE_ELEVEN_LABS_API_KEY);
-        // Log first and last few characters if present
-        if (import.meta.env.VITE_ELEVEN_LABS_API_KEY) {
-            const key = import.meta.env.VITE_ELEVEN_LABS_API_KEY as string;
-            console.log('API key format:', `${key.substring(0, 4)}...${key.substring(key.length - 4)}`);
-        }
-    }, []);
 
     // Wrapper for startConversation that returns void
     const handleConnect = useCallback(async (): Promise<void> => {
-        console.log("Home: Connecting to WebSocket");
-        await startConversation();
+        try {
+            console.log("Home: Connecting to WebSocket");
+            await startConversation();
+        } catch (error) {
+            console.error("Connection error:", error);
+            notifications.show({
+                title: 'Connection Error',
+                message: error instanceof Error ? error.message : 'Failed to connect to voice service',
+                color: 'red',
+            });
+        }
     }, [startConversation]);
 
     // Wrapper for endConversation that returns Promise<void>
@@ -77,17 +65,27 @@ export const Home: React.FC = () => {
     // Handle start recording with proper connection check
     const handleStartRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Starting recording");
-        if (connectionState !== ConnectionState.CONNECTED) {
-            console.log("Not connected, connecting first");
-            await handleConnect();
+        try {
+            if (connectionState !== ConnectionState.CONNECTED) {
+                console.log("Not connected, connecting first");
+                await handleConnect();
+            }
+            await startRecording();
+        } catch (error) {
+            console.error("Recording error:", error);
+            notifications.show({
+                title: 'Microphone Error',
+                message: 'Could not access microphone. Please check your browser permissions.',
+                color: 'red',
+            });
         }
-        await startRecording();
     }, [connectionState, handleConnect, startRecording]);
 
     // Handle stop recording
     const handleStopRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Stopping recording");
         stopRecording();
+        return Promise.resolve();
     }, [stopRecording]);
 
     // Send a text message
@@ -99,41 +97,23 @@ export const Home: React.FC = () => {
                 await handleConnect();
             }
 
-            // Create a callback handler that will be passed to sendMessage
-            const messageHandler = (msg: any) => {
-                if (msg.role === 'assistant') {
-                    console.log("Response received in Home component:", msg);
-                    
-                    // Extract the content - handle different possible formats
-                    let content: string;
-                    if (typeof msg.content === 'string') {
-                        content = msg.content;
-                    } else if (msg.formatted?.text) {
-                        content = msg.formatted.text;
-                    } else if (msg.formatted?.transcript) {
-                        content = msg.formatted.transcript;
-                    } else {
-                        content = "Unable to display response content";
-                        console.error("Unexpected message format:", msg);
-                    }
-                    
-                    console.log("Extracted content:", content.substring(0, 30) + "...");
-                    
-                    // Call the callback with the extracted content
-                    if (callback) {
-                        console.log("Calling provided callback with extracted content");
-                        callback(content);
-                    }
-                }
-            };
-
-            // Pass the message to the WebSocket with the enhanced message handler
-            console.log("Sending message to WebSocket with callback handler");
-            const result = await sendMessage(message, messageHandler);
+            const result = await sendMessage(message, callback);
             console.log("Message sent to WebSocket, result:", result);
-            
+
+            if (!result) {
+                notifications.show({
+                    title: 'Message Error',
+                    message: 'Failed to send message. Please try again.',
+                    color: 'red',
+                });
+            }
         } catch (error) {
             console.error('Failed to send message:', error);
+            notifications.show({
+                title: 'Message Error',
+                message: 'Failed to send message. Please try again.',
+                color: 'red',
+            });
         }
     }, [connectionState, handleConnect, sendMessage]);
 
@@ -149,25 +129,38 @@ export const Home: React.FC = () => {
     useEffect(() => {
         console.log("Connection state changed:", connectionState);
     }, [connectionState]);
-    
-    // Audio level tracking for visualizations
+
+    // Set up audio level visualization
     useEffect(() => {
         if (connectionState === ConnectionState.CONNECTED) {
+            let animationFrame: number | null = null;
+
             const updateAudioLevels = () => {
-                const inputLevel = getInputAudioLevel();
-                const outputLevel = getOutputAudioLevel();
-                
-                // Update visualizations here if needed
-                console.log(`Audio levels - Input: ${inputLevel}, Output: ${outputLevel}`);
-                
+                // Only update visualizations if connected
                 if (connectionState === ConnectionState.CONNECTED) {
-                    requestAnimationFrame(updateAudioLevels);
+                    // Get audio levels from the conversation
+                    const inputLevel = getInputAudioLevel();
+                    const outputLevel = getOutputAudioLevel();
+
+                    // Draw visualizations if needed
+                    // For debugging
+                    if (isRecording || isSpeaking) {
+                        console.log(`Audio levels - Input: ${inputLevel.toFixed(2)}, Output: ${outputLevel.toFixed(2)}`);
+                    }
+
+                    animationFrame = requestAnimationFrame(updateAudioLevels);
                 }
             };
-            
-            requestAnimationFrame(updateAudioLevels);
+
+            animationFrame = requestAnimationFrame(updateAudioLevels);
+
+            return () => {
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                }
+            };
         }
-    }, [connectionState, getInputAudioLevel, getOutputAudioLevel]);
+    }, [connectionState, getInputAudioLevel, getOutputAudioLevel, isRecording, isSpeaking]);
 
     return (
         <AppShell
@@ -221,5 +214,3 @@ export const Home: React.FC = () => {
         </AppShell>
     );
 };
-
-export default Home;

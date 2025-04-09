@@ -1,7 +1,7 @@
 // src/hooks/useEnhancedWebSocketConversation.ts
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
-import { Conversation, Options, Status, Mode } from '@11labs/client';
+import { Conversation, SessionConfig, Callbacks, ClientToolsConfig, InputConfig } from '@11labs/client';
 import { EnhancedConversationItem } from '../types/conversation';
 import { ConnectionState } from '../types/connection';
 
@@ -26,7 +26,7 @@ interface WebSocketHookOptions {
 }
 
 // Map 11labs status to our ConnectionState
-const mapStatusToConnectionState = (status: Status): ConnectionState => {
+const mapStatusToConnectionState = (status: "connecting" | "connected" | "disconnecting" | "disconnected"): ConnectionState => {
     switch (status) {
         case 'connecting':
             return ConnectionState.CONNECTING;
@@ -45,13 +45,14 @@ const mapStatusToConnectionState = (status: Status): ConnectionState => {
 export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) => {
     // Default options
     const {
-        agentId = 'LclYQZaTV1A9E1fgKwF9',
+        agentId = 'TaDOThYRtPGeAcPDnfys',
         apiKey,
         autoReconnect = true,
         onMessageReceived
     } = options;
 
     // Get API key from environment if not provided in options
+    // Using import.meta.env for Vite
     const apiKeyToUse = apiKey || import.meta.env.VITE_ELEVEN_LABS_API_KEY;
 
     // State
@@ -70,13 +71,13 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
     const reconnectCountRef = useRef<number>(0);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isConnectingRef = useRef<boolean>(false);
-    const responseCallbackRef = useRef<((message: EnhancedConversationItem) => void) | null>(null);
+    const responseCallbackRef = useRef<((message: string) => void) | null>(null);
 
     // Create a conversation message object
     const createMessageObject = useCallback((role: 'user' | 'assistant', content: string): EnhancedConversationItem => {
         return {
             id: Date.now().toString(),
-            object: 'conversation.message',
+            object: 'chat.completion',
             role: role,
             type: 'message',
             content: content,
@@ -112,6 +113,29 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
         }));
     }, []);
 
+    // Fetch a signed URL from our backend
+    const getSignedUrl = useCallback(async (): Promise<string | null> => {
+        try {
+            // Use our proxy server to get a signed URL
+            const response = await fetch('http://localhost:3001/api/get-signed-url');
+
+            if (!response.ok) {
+                throw new Error(`Failed to get signed URL: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.signedUrl) {
+                throw new Error('No signed URL in response');
+            }
+
+            return data.signedUrl;
+        } catch (error) {
+            console.error('Error fetching signed URL:', error);
+            return null;
+        }
+    }, []);
+
     // Start conversation (connect to 11labs)
     const startConversation = useCallback(async (): Promise<boolean> => {
         // Prevent multiple simultaneous connection attempts
@@ -123,22 +147,6 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
         if (conversationRef.current && conversationRef.current.isOpen()) {
             console.log('Conversation already connected');
             return true;
-        }
-
-        // Check if we have an API key
-        if (!apiKeyToUse) {
-            console.error('No ElevenLabs API key provided. Please set the VITE_ELEVEN_LABS_API_KEY environment variable.');
-            setState(prev => ({
-                ...prev,
-                connectionState: ConnectionState.ERROR,
-                error: 'No ElevenLabs API key provided'
-            }));
-            notifications.show({
-                title: 'Configuration Error',
-                message: 'Missing ElevenLabs API key. Please check your environment variables.',
-                color: 'red',
-            });
-            return false;
         }
 
         isConnectingRef.current = true;
@@ -153,53 +161,34 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
             console.log('Creating ElevenLabs conversation...');
             console.log('Agent ID:', agentId);
 
-            const handleMessage = (props: { message: string, source: 'user' | 'ai' }) => {
-                console.log(`Received message from ${props.source}:`, props.message);
+            // Try to get a signed URL first
+            const signedUrl = await getSignedUrl();
 
-                // Create conversation item
-                const role = props.source === 'ai' ? 'assistant' : 'user';
-                const newMessage = createMessageObject(role, props.message);
-
-                // Update state with the new message
-                setState(prev => ({
-                    ...prev,
-                    messages: [...prev.messages, newMessage],
-                    isThinking: false
-                }));
-
-                // Call message callback if provided
-                if (onMessageReceived && props.source === 'ai') {
-                    onMessageReceived(newMessage);
+            if (!signedUrl) {
+                // If we couldn't get a signed URL, check if we have an API key
+                if (!apiKeyToUse) {
+                    console.error('No ElevenLabs API key provided and could not get signed URL');
+                    setState(prev => ({
+                        ...prev,
+                        connectionState: ConnectionState.ERROR,
+                        error: 'No ElevenLabs API key provided and could not get signed URL'
+                    }));
+                    notifications.show({
+                        title: 'Configuration Error',
+                        message: 'Missing ElevenLabs API key. Please check your environment variables.',
+                        color: 'red',
+                    });
+                    isConnectingRef.current = false;
+                    return false;
                 }
 
-                // If there's a one-time response callback, call it and clear
-                if (responseCallbackRef.current && props.source === 'ai') {
-                    responseCallbackRef.current(newMessage);
-                    responseCallbackRef.current = null;
-                }
-            };
+                console.log('Could not get signed URL, falling back to direct API key');
+            } else {
+                console.log('Successfully got signed URL, using it for connection');
+            }
 
-            // Configure the 11labs client based on SessionConfig requirements
-            const conversationOptions = {
-                // Authentication
-                authorization: apiKeyToUse,           // API key without Bearer prefix
-                
-                // Agent ID is required when not using signedUrl
-                agentId,
-                
-                // Optional configuration for better experience
-                overrides: {
-                    agent: {
-                        // Default language
-                        language: "en"
-                    },
-                    tts: {
-                        // Default voice
-                        voiceId: "21m00Tcm4TlvDq8ikWAM"  // Rachel voice
-                    }
-                },
-
-                // Callbacks
+            // Prepare callbacks configuration
+            const callbacks: Partial<Callbacks> = {
                 onConnect: ({ conversationId }) => {
                     console.log('Connected to ElevenLabs conversation:', conversationId);
                     setState(prev => ({
@@ -221,9 +210,34 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
                         isThinking: false
                     }));
                 },
-                onMessage: handleMessage,
+                onMessage: ({ message, source }) => {
+                    console.log(`Received message from ${source}:`, message.substring(0, 50));
+
+                    // Create conversation item
+                    const role = source === 'ai' ? 'assistant' : 'user';
+                    const newMessage = createMessageObject(role, message);
+
+                    // Update state with the new message
+                    setState(prev => ({
+                        ...prev,
+                        messages: [...prev.messages, newMessage],
+                        isThinking: false
+                    }));
+
+                    // Call message callback if provided
+                    if (onMessageReceived && source === 'ai') {
+                        onMessageReceived(newMessage);
+                    }
+
+                    // If there's a one-time response callback, call it and clear
+                    if (responseCallbackRef.current && source === 'ai') {
+                        responseCallbackRef.current(message);
+                        responseCallbackRef.current = null;
+                    }
+                },
                 onAudio: (base64Audio) => {
                     console.log('Received audio data of length:', base64Audio.length);
+                    // Audio is handled by the ElevenLabs SDK automatically
                 },
                 onError: (message, context) => {
                     console.error('ElevenLabs error:', message, context);
@@ -263,28 +277,61 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
                         }));
                     }
                 },
-                onCanSendFeedbackChange: () => {
-                    // We don't use this currently
-                },
+                onCanSendFeedbackChange: ({ canSendFeedback }) => {
+                    // Not used currently
+                }
+            };
 
-                // Client tools configuration (required but empty)
+            // Client tools configuration
+            const clientToolsConfig: Partial<ClientToolsConfig> = {
                 clientTools: {}
             };
 
-            // Create and start the conversation
-            // The startSession static method handles creating and initializing the conversation
-            const conversation = await Conversation.startSession(conversationOptions);
-            conversationRef.current = conversation;
+            // Create a base configuration
+            const baseConfig: Partial<InputConfig> = {};
 
+            // Prepare session configuration
+            let sessionConfig: SessionConfig;
+
+            if (signedUrl) {
+                // Use signed URL for authentication
+                sessionConfig = {
+                    signedUrl
+                };
+            } else {
+                // Use API key for authentication
+                sessionConfig = {
+                    authorization: apiKeyToUse,
+                    agentId,
+                    overrides: {
+                        agent: {
+                            language: "en"
+                        },
+                        tts: {
+                            voiceId: "21m00Tcm4TlvDq8ikWAM"  // Rachel voice
+                        }
+                    }
+                };
+            }
+
+            // Create and start the conversation
+            const conversation = await Conversation.startSession({
+                ...sessionConfig,
+                ...callbacks,
+                ...clientToolsConfig,
+                ...baseConfig
+            });
+
+            conversationRef.current = conversation;
             return true;
         } catch (error) {
             console.error('Connection error:', error);
-
-            // Check for authorization errors specifically
             const errorMessage = error instanceof Error ? error.message : 'Connection failed';
 
-            if (errorMessage.includes('authorize') ||
+            if (errorMessage.includes('authorization') ||
                 errorMessage.includes('authentication') ||
+                errorMessage.includes('authorize') ||
+                errorMessage.includes('bearer') ||
                 errorMessage.includes('token') ||
                 errorMessage.includes('API key')) {
                 console.error('API key authentication failed. Please check your ElevenLabs API key.');
@@ -306,6 +353,12 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
                     connectionState: ConnectionState.ERROR,
                     error: errorMessage
                 }));
+
+                notifications.show({
+                    title: 'Connection Error',
+                    message: errorMessage,
+                    color: 'red',
+                });
             }
 
             isConnectingRef.current = false;
@@ -324,7 +377,7 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
 
             return false;
         }
-    }, [apiKeyToUse, agentId, autoReconnect, createMessageObject, onMessageReceived, options.reconnectAttempts, options.reconnectDelay]);
+    }, [agentId, apiKeyToUse, autoReconnect, createMessageObject, getSignedUrl, onMessageReceived, options.reconnectAttempts, options.reconnectDelay]);
 
     // Send text message
     const sendMessage = useCallback(async (text: string, responseCallback?: (response: string) => void): Promise<boolean> => {
@@ -353,9 +406,7 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
 
             // Set up a one-time response handler if needed
             if (responseCallback) {
-                responseCallbackRef.current = (message: EnhancedConversationItem) => {
-                    responseCallback(message.content as string);
-                };
+                responseCallbackRef.current = responseCallback;
 
                 // Set a timeout to clear the callback if no response is received
                 setTimeout(() => {
@@ -401,18 +452,15 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
         }
 
         try {
-            setState(prev => ({ ...prev, isRecording: true }));
-
             // Start recording by unmuting the microphone
             if (conversationRef.current) {
                 conversationRef.current.setMicMuted(false);
             }
-            console.log('Recording started');
 
+            console.log('Recording started');
             return true;
         } catch (error) {
             console.error('Error starting recording:', error);
-            setState(prev => ({ ...prev, isRecording: false }));
 
             if (error instanceof DOMException && error.name === 'NotAllowedError') {
                 notifications.show({
@@ -435,12 +483,11 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
     // Stop recording
     const stopRecording = useCallback((): void => {
         console.log('Stopping recording...');
-        if (conversationRef.current && state.isRecording) {
+        if (conversationRef.current) {
             // Mute the microphone to stop recording
             conversationRef.current.setMicMuted(true);
-            setState(prev => ({ ...prev, isRecording: false }));
         }
-    }, [state.isRecording]);
+    }, []);
 
     // End conversation
     const endConversation = useCallback((): void => {
@@ -463,11 +510,6 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
             closeConnection();
         };
     }, [closeConnection]);
-
-    // Log connection state changes
-    useEffect(() => {
-        console.log('WebSocket connection state:', state.connectionState);
-    }, [state.connectionState]);
 
     // Get audio visualization data
     const getInputAudioLevel = useCallback((): number => {
