@@ -1,3 +1,5 @@
+// reference: https://github.com/openai/openai-realtime-api-beta
+
 import { RealtimeRelay } from './lib/relay.js';
 import dotenv from 'dotenv';
 dotenv.config({ override: true });

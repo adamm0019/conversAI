@@ -1,8 +1,8 @@
-# Language Learning Assistant 🎙️
+# Language Learning Assistant
 
 An interactive language learning application powered by OpenAI's real-time API, featuring voice-based conversations, real-time transcription, and adaptive learning capabilities.
 
-## 🌟 Features
+## Features
 
 ### Core Functionality
 - **Real-time Voice Interaction**: Natural conversations with AI language tutor
@@ -30,12 +30,13 @@ An interactive language learning application powered by OpenAI's real-time API, 
 - Vocabulary review
 - Conversation history
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
 - OpenAI API key
+- ElevenLabs API key
 
 ### Installation
 ```bash
@@ -52,7 +53,10 @@ npm install
 cp .env.example .env
 
 # Add your OpenAI API key to .env
-OPENAI_API_KEY=your_api_key_here
+VITE_OPENAI_API_KEY=your_api_key_here
+
+# Add your ElevenLabs API key to .env
+VITE_ELEVEN_LABS_API_KEY
 
 # Start the development server
 npm run dev
@@ -61,59 +65,27 @@ npm run dev
 ### Running the Local Relay Server
 ```bash
 # Start the relay server
-cd relay-server
+cd eleven-server
 node index.js
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend Framework**: React with TypeScript
 - **Build Tool**: Vite
 - **UI Components**: Mantine UI
 - **State Management**: React Hooks
 - **Audio Processing**: Web Audio API
-- **API Integration**: OpenAI Real-time API
-- **Styling**: Mantine Core + Emotion + Tabler Icons
-
-## 📁 Project Structure
-
-```
-src/
-├── components/
-│   ├── AudioControls/
-│   ├── ChatSection/
-│   ├── Header/
-│   └── EventsPanel/
-├── hooks/
-│   ├── useAudioRecording.ts
-├── types/
-│   └── index.ts
-├── styles/
-│   └── theme.ts
-└── utils/
-    ├── conversation_config.js
-    └── wav_renderer.ts
-```
+- **API Integration**: OpenAI Real-time API, ElevenLabs Agent API
+- **Styling**: Mantine Core + framer-motion + Tabler Icons
 
 ## 🔧 Configuration
 
-### Environment Variables
-```env
-VITE_LOCAL_RELAY_SERVER_URL=http://localhost:8081
-OPENAI_API_KEY=your_api_key
-```
-
-### Audio Settings
-- Sample Rate: 24000 Hz
-- Channel Count: 1
-- Bit Depth: 16-bit
-
-## 🎯 Usage
+## Usage
 
 1. **Start a Session**:
-   - Click 'Connect' to initialize
-   - Select your target language
-   - Choose voice detection mode
+   - Click 'Start new chat' to initialize
+   - Enter text in chat input area or use microphone to record audio
 
 2. **Voice Interaction**:
    - Use Push-to-Talk or VAD mode
@@ -121,21 +93,11 @@ OPENAI_API_KEY=your_api_key
    - View real-time transcription
 
 3. **Learning Tools**:
-   - Access pronunciation practice
-   - Use grammar check features
+   - Helpful language learning games
+   - Grammar checking features
    - Review vocabulary
    - Track progress
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- OpenAI for the Real-time API
-- Mantine team for the UI components
-- Contributors and testers
-
-## 📫 Contact
+## Contact
 
 Adam Malone - [adam-malone@hotmail.co.uk]

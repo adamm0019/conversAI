@@ -1,202 +1,178 @@
 import { AppShell } from '@mantine/core';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
-import { notifications } from '@mantine/notifications';
-import { useConversation } from '@11labs/react';
-
-// Components
-import { ChatSection } from '../components/ChatSection/ChatSection.js';
-import { Header } from '../components/Header/Header.js';
-import { AuthOverlay } from '../components/AuthOverlay/AuthOverlay.js';
-
-// Types
+import { useWebSocketConversation } from '../hooks/useWebSocketConversation';
+import { ChatSection } from '../components/ChatSection/ChatSection';
+import { Header } from '../components/Header/Header';
+import { AuthOverlay } from '../components/AuthOverlay/AuthOverlay';
 import { EnhancedConversationItem } from '../types/conversation';
 
 export const Home: React.FC = () => {
-  // State
-  const [selectedMode, setSelectedMode] = useState('tutor');
-  const [messages, setMessages] = useState<EnhancedConversationItem[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  
-  // Initialize Eleven Labs conversation
-  const conversation = useConversation({
-    onConnect: () => {
-      console.log('Connected to Eleven Labs');
-      notifications.show({
-        title: 'Connected',
-        message: 'Successfully connected to language tutor',
-        color: 'green',
-      });
-    },
-    onDisconnect: () => {
-      console.log('Disconnected from Eleven Labs');
-      setIsRecording(false);
-    },
-    onError: (message: string) => {
-      console.error('Conversation error:', message);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to process conversation. Please try again.',
-        color: 'red',
-      });
-    },
-    onMessage: (props: { message: string; source: string }) => {
-      const enhancedMessage: EnhancedConversationItem = {
-        id: Date.now().toString(),
-        object: 'conversation.message',
-        role: props.source === 'ai' ? 'assistant' : 'user',
-        type: 'message',
-        content: props.message,
-        formatted: {
-          text: props.message,
-        },
-        created_at: new Date().toISOString(),
-        timestamp: Date.now(),
-        status: 'completed'
-      };
-      setMessages(prev => [...prev, enhancedMessage]);
-    },
-  });
+    const [selectedMode, setSelectedMode] = useState('tutor');
+    const [messages, setMessages] = useState<EnhancedConversationItem[]>([]);
+    const [isRecording, setIsRecording] = useState(false);
 
-  const { status, isSpeaking } = conversation;
+    const {
+        isConnected,
+        isInitializing,
+        isLoading,
+        error,
+        isSpeaking,
+        startConversation,
+        endConversation,
+        sendMessage,
+        messages: conversationMessages,
+        startRecording,
+        stopRecording
+    } = useWebSocketConversation();
 
-  const clientCanvasRef = useRef<HTMLCanvasElement>(null);
-  const serverCanvasRef = useRef<HTMLCanvasElement>(null);
+    const clientCanvasRef = useRef<HTMLCanvasElement>(null);
+    const serverCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Request microphone access on mount
-  useEffect(() => {
-    const requestMicrophoneAccess = async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('Microphone access granted');
-      } catch (error) {
-        console.error('Error accessing microphone:', error);
-        notifications.show({
-          title: 'Microphone Access Required',
-          message: 'Please allow microphone access to use the language tutor.',
-          color: 'red',
-        });
-      }
+    // converting messages to new enhanced conversation items
+    useEffect(() => {
+        if (conversationMessages.length > 0) {
+            const enhancedMessages: EnhancedConversationItem[] = conversationMessages.map(msg => ({
+                id: msg.id,
+                object: 'conversation.message',
+                role: msg.role,
+                type: 'message',
+                content: msg.content,
+                formatted: {
+                    text: msg.content,
+                },
+                created_at: new Date(msg.timestamp).toISOString(),
+                timestamp: msg.timestamp,
+                status: 'completed'
+            }));
+            setMessages(enhancedMessages);
+        }
+    }, [conversationMessages]);
+
+    const handleStartRecording = async () => {
+        try {
+            if (!isConnected) {
+                await startConversation();
+            }
+            await startRecording();
+            setIsRecording(true);
+        } catch (error) {
+            console.error('Failed to start recording:', error);
+            setIsRecording(false);
+        }
     };
 
-    requestMicrophoneAccess();
-  }, []);
-
-  const getSignedUrl = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_ELEVEN_SERVER_URL}/api/get-signed-url`);
-      if (!response.ok) {
-        throw new Error('Failed to get signed URL');
-      }
-      const data = await response.json();
-      return data.signedUrl;
-    } catch (error) {
-      console.error('Error getting signed URL:', error);
-      throw error;
-    }
-  };
-
-  const handleStartRecording = async () => {
-    try {
-      const signedUrl = await getSignedUrl();
-      
-      await conversation.startSession({
-        signedUrl,
-        origin: window.location.origin,
-        authorization: import.meta.env.VITE_ELEVEN_LABS_API_KEY
-      });
-      
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Recording error:', error);
-      notifications.show({
-        title: 'Recording Error',
-        message: 'Failed to start recording. Please try again.',
-        color: 'red',
-      });
-    }
-  };
-
-  const handleStopRecording = async () => {
-    try {
-      await conversation.endSession();
-      setIsRecording(false);
-    } catch (error) {
-      console.error('Stop recording error:', error);
-      notifications.show({
-        title: 'Recording Error',
-        message: 'Failed to stop recording. Please try again.',
-        color: 'red',
-      });
-    }
-  };
-
-  const handleSendMessage = async (message: string) => {
-    const enhancedMessage: EnhancedConversationItem = {
-      id: Date.now().toString(),
-      object: 'conversation.message',
-      role: 'user',
-      type: 'message',
-      content: message,
-      formatted: {
-        text: message,
-      },
-      created_at: new Date().toISOString(),
-      timestamp: Date.now(),
-      status: 'completed'
+    const handleStopRecording = async () => {
+        try {
+            await stopRecording();
+            setIsRecording(false);
+        } catch (error) {
+            console.error('Failed to stop recording:', error);
+        }
     };
-    setMessages(prev => [...prev, enhancedMessage]);
-  };
 
-  // Handle API key reset (required for Header component)
-  const handleResetAPIKey = () => {
-    notifications.show({
-      title: 'Info',
-      message: 'API key management is handled through environment variables.',
-      color: 'blue',
-    });
-  };
+    const [isThinking, setIsThinking] = useState(false);
 
-  return (
-    <AppShell
-      header={{ height: 60 }}
-      padding={0}
-      style={{ 
-        position: 'relative',
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%'
-      }}
-    >
-      <Header
-        selectedMode={selectedMode}
-        onModeChange={setSelectedMode}
-        onResetAPIKey={handleResetAPIKey}
-        showSettings={false}
-      />
+    const handleSendMessage = async (message: string, callback?: (response: string) => void) => {
+        try {
+            if (!isConnected) {
+                await startConversation();
+            }
+            sendMessage(message);
 
-      <AppShell.Main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', width: '100%' }}>
-        <SignedIn>
-          <ChatSection
-            items={messages}
-            isConnected={status === 'connected'}
-            isRecording={isRecording || isSpeaking}
-            onStartRecording={handleStartRecording}
-            onStopRecording={handleStopRecording}
-            onDisconnect={handleStopRecording}
-            onConnect={handleStartRecording}
-            onSendMessage={handleSendMessage}
-            clientCanvasRef={clientCanvasRef}
-            serverCanvasRef={serverCanvasRef}
-          />
-        </SignedIn>
-        <SignedOut>
-          <AuthOverlay />
-        </SignedOut>
-      </AppShell.Main>
-    </AppShell>
-  );
+            // adding the user's messages to the chat
+            const enhancedMessage: EnhancedConversationItem = {
+                id: Date.now().toString(),
+                object: 'conversation.message',
+                role: 'user',
+                type: 'message',
+                content: message,
+                formatted: {
+                    text: message,
+                },
+                created_at: new Date().toISOString(),
+                timestamp: Date.now(),
+                status: 'completed'
+            };
+            setMessages(prev => [...prev, enhancedMessage]);
+
+            // response listener
+            if (callback) {
+                const waitForResponse = () => {
+                    const lastMessage = conversationMessages[conversationMessages.length - 1];
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        callback(lastMessage.content);
+                    } else {
+                        setTimeout(waitForResponse, 100); // Check again in 100ms
+                    }
+                };
+                waitForResponse();
+            }
+
+        } catch (error) {
+            console.error('Failed to send message:', error);
+        }
+    };
+    // connection cleanup
+    useEffect(() => {
+        return () => {
+            endConversation();
+        };
+    }, [endConversation]);
+
+    return (
+        <AppShell
+            header={{ height: 60 }}
+            padding={0}
+            style={{
+                position: 'relative',
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%'
+            }}
+        >
+            <Header
+                selectedMode={selectedMode}
+                onModeChange={setSelectedMode}
+                onResetAPIKey={() => { }}
+                showSettings={false}
+            />
+
+            <AppShell.Main style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                height: 'calc(100vh - 60px)',
+                width: '100%'
+            }}>
+                <SignedIn>
+                    <ChatSection
+                        items={messages}
+                        isConnected={isConnected}
+                        isRecording={isRecording || isSpeaking}
+                        isInitializing={isInitializing || isLoading}
+                        connectionError={error}
+                        onStartRecording={handleStartRecording}
+                        onStopRecording={handleStopRecording}
+                        onDisconnect={endConversation}
+                        onConnect={startConversation}
+                        onSendMessage={handleSendMessage}
+                        onNewChat={() => {
+                            if (!isConnected) {
+                                startConversation();
+                            }
+                        }}
+                        clientCanvasRef={clientCanvasRef}
+                        serverCanvasRef={serverCanvasRef}
+                    />
+                </SignedIn>
+                <SignedOut>
+                    <AuthOverlay />
+                </SignedOut>
+            </AppShell.Main>
+        </AppShell>
+    );
 };
 
 export default Home;

@@ -3,35 +3,34 @@ import { createTheme, rem } from '@mantine/core';
 export const theme = createTheme({
   primaryColor: 'primary',
   colors: {
-    // Custom primary color palette
     primary: [
-      '#E3F2FD', // 0: Lightest
-      '#BBDEFB', // 1
-      '#90CAF9', // 2
-      '#64B5F6', // 3
-      '#42A5F5', // 4
-      '#1976D2', // 5: Primary
-      '#1565C0', // 6
-      '#0D47A1', // 7
-      '#0A2472', // 8
-      '#061539', // 9: Darkest
+      '#E3F2FD',
+      '#BBDEFB',
+      '#90CAF9',
+      '#64B5F6',
+      '#42A5F5',
+      '#1976D2',
+      '#1565C0',
+      '#0D47A1',
+      '#0A2472',
+      '#061539',
     ],
-    // Dark theme colors
+
+    // dark mode
     dark: [
-      '#C1C2C5', // 0
-      '#A6A7AB', // 1
-      '#909296', // 2
-      '#5C5F66', // 3
-      '#373A40', // 4
-      '#2C2E33', // 5
-      '#25262B', // 6
-      '#1A1B1E', // 7
-      '#141517', // 8
-      '#101113', // 9
+      '#C1C2C5',
+      '#A6A7AB',
+      '#909296',
+      '#5C5F66',
+      '#373A40',
+      '#2C2E33',
+      '#25262B',
+      '#1A1B1E',
+      '#141517',
+      '#101113',
     ],
   },
-  
-  // Custom component styles
+
   components: {
     Button: {
       defaultProps: {
@@ -66,7 +65,6 @@ export const theme = createTheme({
     },
   },
 
-  // Global theme properties
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   fontSizes: {
     xs: rem(12),
@@ -91,7 +89,8 @@ export const theme = createTheme({
   },
 });
 
-// CSS Variables for use outside of Mantine components
+// unused css variables - to be removed
+
 export const cssVariables = {
   colors: {
     primary: 'var(--mantine-color-primary-6)',

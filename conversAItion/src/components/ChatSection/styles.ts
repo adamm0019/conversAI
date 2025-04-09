@@ -1,159 +1,304 @@
-import { CSSProperties } from 'react';
 import { keyframes } from '@emotion/react';
 
-export const pulseAnimation = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-`;
-
 export const slideIn = keyframes`
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 `;
 
-type StyleObject = {
-  [key: string]: CSSProperties;
-};
+export const pulseAnimation = keyframes`
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+`;
 
-export const chatSectionStyles: StyleObject = {
+export const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     height: '100%',
     width: '100%',
-    position: 'relative',
-    backgroundColor: '#1A1B1E',
-  } as CSSProperties,
-  messageContainer: {
-    maxWidth: '85%',
-    position: 'relative',
-    display: 'flex',
-    width: '100%',
-    alignItems: 'flex-end',
-    marginBottom: '1rem',
-  } as CSSProperties,
-  messageBubbleBase: {
-    padding: 'var(--mantine-spacing-md) var(--mantine-spacing-xl)',
-    borderRadius: '20px',
-    position: 'relative',
-    backdropFilter: 'blur(10px)',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    minWidth: '280px',
-    maxWidth: '100%',
-    '@media (min-width: 768px)': {
-      maxWidth: '85%',
-    },
-    wordWrap: 'break-word',
-    wordBreak: 'break-word',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 'var(--mantine-spacing-xs)',
-  } as CSSProperties,
-  messageBubbleAssistant: {
-    background: 'linear-gradient(135deg, rgba(44, 46, 60, 0.9), rgba(34, 36, 50, 0.8))',
-    color: 'var(--mantine-color-white)',
-    borderBottomLeftRadius: '4px',
-    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    marginRight: 'auto',
-  } as CSSProperties,
-  messageBubbleUser: {
-    background: 'linear-gradient(135deg, rgba(56, 127, 255, 0.9), rgba(37, 99, 235, 0.8))',
-    color: 'var(--mantine-color-white)',
-    borderBottomRightRadius: '4px',
-    boxShadow: '0 4px 15px rgba(37, 99, 235, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    marginLeft: 'auto',
-  } as CSSProperties,
-  messageText: {
-    margin: 0,
-    lineHeight: 1.6,
-    letterSpacing: '0.01em',
-    fontSize: '0.95rem',
-    fontWeight: 400,
-    whiteSpace: 'pre-wrap',
-    overflowWrap: 'break-word',
-    width: '100%',
-    padding: 'var(--mantine-spacing-xs) 0',
-  } as CSSProperties,
-  messageAudio: {
-    marginTop: 'var(--mantine-spacing-xs)',
-    borderRadius: 'var(--mantine-radius-md)',
-    width: '100%',
-    minWidth: '280px',
-    '@media (min-width: 768px)': {
-      minWidth: '300px',
-    },
-    height: '40px',
-    opacity: 0.9,
-    transition: 'opacity 0.2s ease',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    padding: 'var(--mantine-spacing-xs)',
-  } as CSSProperties,
+    position: 'relative' as const,
+    overflow: 'hidden',
+  },
+
   chatArea: {
     flex: 1,
-    overflowY: 'auto',
-    backgroundColor: '#1A1B1E',
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: 0,
-    width: '100%',
-    height: 'calc(100vh - 60px)',
-    scrollBehavior: 'smooth',
-    padding: '16px 8px',
-    '@media (min-width: 768px)': {
-      padding: '32px 16px',
+    overflowY: 'auto' as const,
+    padding: '20px',
+    paddingBottom: '100px',
+    marginLeft: '28px',
+    '&::-webkit-scrollbar': {
+      width: '8px',
     },
-  } as CSSProperties,
-  recordingControls: {
-    borderTop: '1px solid rgba(55, 58, 64, 0.5)',
-    background: 'rgba(37, 38, 43, 0.95)',
-    backdropFilter: 'blur(12px)',
-    position: 'sticky',
+    '&::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#2C2E33',
+      borderRadius: '4px',
+    },
+  },
+
+  shelf: {
+    position: 'fixed' as const,
+    top: '60px',
+    left: 0,
     bottom: 0,
+    width: '320px',
+    zIndex: 100,
+    backgroundColor: '#1A1B1E',
+  },
+
+  shelfContent: {
+    height: '100%',
     width: '100%',
-    boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.1)',
-    zIndex: 10,
-    padding: '16px 8px',
-    '@media (min-width: 768px)': {
-      padding: '24px 16px',
+    backgroundColor: '#1A1B1E',
+    borderRight: '1px solid #2C2E33',
+    padding: '16px',
+    overflowY: 'auto' as const,
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    '&::-webkit-scrollbar': {
+      width: '4px',
     },
-  } as CSSProperties,
-  inputWrapper: {
-    width: '100%',
-    maxWidth: '800px',
-    margin: '0 auto',
-    background: 'rgba(64, 65, 79, 0.9)',
-    borderRadius: '12px',
-    border: '1px solid rgba(86, 88, 105, 1)',
-    padding: '8px',
-    '@media (min-width: 768px)': {
-      padding: '8px 12px',
+    '&::-webkit-scrollbar-track': {
+      background: 'transparent',
     },
-    boxShadow: '0 0 15px rgba(0, 0, 0, 0.1)',
-    position: 'relative',
-  } as CSSProperties,
-  canvas: {
-    opacity: 0.8,
-    transition: 'opacity 0.3s ease',
-    filter: 'drop-shadow(0 0 8px rgba(51, 154, 240, 0.2))',
-    width: '80px',
-    '@media (min-width: 768px)': {
-      width: '100px',
+    '&::-webkit-scrollbar-thumb': {
+      background: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: '4px',
     },
+  },
+
+  shelfArrow: {
+    position: 'absolute' as const,
+    left: 0,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '28px',
     height: '40px',
-  } as CSSProperties,
-  loader: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    opacity: 0.8,
-  } as CSSProperties,
-};
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    zIndex: 101,
+    backgroundColor: '#1A1B1E',
+    borderRadius: '0 4px 4px 0',
+    border: '1px solid #2C2E33',
+    borderLeft: 'none',
+  },
+
+  newChatButton: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+    padding: '12px 16px',
+    backgroundColor: '#25262B',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginBottom: '16px',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: '#2C2E33',
+      transform: 'translateY(-1px)',
+    },
+  },
+
+  chatTab: {
+    backgroundColor: 'rgba(37, 38, 43, 0.4)',
+    borderRadius: '4px',
+    padding: '12px 16px',
+    marginBottom: '4px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: 'rgba(44, 46, 51, 0.6)',
+    },
+  },
+
+  chatTabActive: {
+    backgroundColor: '#25262b',
+    border: '1px solid #2C2E33',
+  },
+
+  dateDividerChat: {
+    padding: '12px 0 8px 0',
+    color: 'var(--mantine-color-gray-6)',
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase' as const,
+  },
+
+  messageContainer: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '2px',
+  },
+
+  messageGroup: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    width: '100%',
+    padding: '4px 0',
+  },
+
+  messageBubbleWrapper: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    maxWidth: '65%',
+    gap: '2px',
+    alignSelf: 'flex-start',
+  },
+
+  messageBubbleWrapperUser: {
+    alignSelf: 'flex-end',
+  },
+
+  messageBubbleBase: {
+    padding: '8px 12px',
+    borderRadius: '16px',
+    wordBreak: 'break-word' as const,
+    whiteSpace: 'pre-wrap' as const,
+    width: 'fit-content',
+    fontSize: '14px',
+    lineHeight: '20px',
+  },
+
+  messageBubbleAssistant: {
+    backgroundColor: '#25262B',
+    color: '#C1C2C5',
+    borderTopLeftRadius: '4px',
+    alignSelf: 'flex-start',
+  },
+
+  messageBubbleUser: {
+    backgroundColor: 'var(--mantine-color-blue-7)',
+    color: 'white',
+    borderTopRightRadius: '4px',
+    alignSelf: 'flex-end',
+  },
+
+  inputContainer: {
+    position: 'fixed' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1A1B1E',
+    borderTop: '1px solid #2C2E33',
+    zIndex: 100,
+  },
+
+  inputWrapper: {
+    position: 'relative',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: -100,
+      left: 0,
+      right: 0,
+      height: 100,
+      background: 'linear-gradient(to bottom, transparent, #1A1B1E)',
+      pointerEvents: 'none',
+    },
+  },
+
+  inputInner: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    width: '100%',
+    padding: '16px',
+  },
+
+  visualizersDesktop: {
+    position: 'absolute' as const,
+    top: '-50px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 101,
+  },
+
+  canvas: {
+    border: '1px solid #2C2E33',
+    borderRadius: '4px',
+    backgroundColor: '#25262B',
+  },
+
+  loaderOverlay: {
+    position: 'absolute' as const,
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+  },
+
+  messageText: {
+    fontSize: '14px',
+    lineHeight: '20px',
+  },
+
+  messageTimestamp: {
+    fontSize: '11px',
+    color: 'var(--mantine-color-gray-6)',
+    padding: '0 4px',
+  },
+
+  messageAudio: {
+    width: '100%',
+    height: '40px',
+    borderRadius: '4px',
+    marginTop: '8px',
+  },
+
+  dateDivider: {
+    position: 'relative',
+    textAlign: 'center' as const,
+    margin: '20px 0',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: '50%',
+      height: '1px',
+      backgroundColor: '#2C2E33',
+      zIndex: 0,
+    },
+  },
+
+  dateBadge: {
+    position: 'relative',
+    backgroundColor: '#1A1B1E',
+    padding: '0 16px',
+    zIndex: 1,
+    color: 'var(--mantine-color-gray-6)',
+    fontSize: '12px',
+  },
+
+  emptyStateContainer: {
+    height: 'calc(100vh - 200px)',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center' as const,
+  },
+} as const;
