@@ -22,3 +22,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Prefer functional components with hooks over class components
 - Handle side effects in useEffect with proper cleanup functions
 - Use Firebase for auth/data and WebSockets for real-time communication
+- Do not generate comments

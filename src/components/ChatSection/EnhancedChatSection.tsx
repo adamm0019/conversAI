@@ -32,7 +32,7 @@ import {useUser} from "@clerk/clerk-react";
 
 import {EnhancedConversationItem} from '../../types/conversation';
 import {ThinkingAnimation} from '../ThinkingAnimation';
-import {MessageBubble} from './MessageBubble';
+import MessageBubble from './MessageBubble';
 import {styles, slideIn} from './styles';
 import {ChatShelf} from './ChatShelf';
 import {ConnectionState} from '../../types/connection';
@@ -43,6 +43,7 @@ interface EnhancedChatSectionProps {
     isThinking: boolean;
     isRecording: boolean;
     isSpeaking: boolean;
+
     audioLevel?: number;
     serverAudioLevel?: number;
     connectionError?: string | null;
@@ -58,7 +59,6 @@ interface EnhancedChatSectionProps {
     conversationId?: string | null;
 }
 
-// Create the component outside of the render function to avoid re-creation
 const ConnectionStatusComponent = React.memo(({
                                                   connectionState,
                                                   error,
@@ -68,7 +68,6 @@ const ConnectionStatusComponent = React.memo(({
     error: string | null;
     onConnect: () => Promise<void>;
 }) => {
-    // Memoize the button content to prevent unnecessary re-renders
     const buttonContent = useMemo(() => {
         switch (connectionState) {
             case ConnectionState.CONNECTED:
@@ -163,8 +162,22 @@ export const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
     const [activeChat, setActiveChat] = useState<string | null>(null);
     const [currentMessages, setCurrentMessages] = useState<EnhancedConversationItem[]>([]);
     const [chatListOpen, setChatListOpen] = useState(false);
+    
+    // Listen for shelf state changes from the ChatShelf component
+    useEffect(() => {
+        const handleShelfStateChange = (event: CustomEvent<{isOpen: boolean}>) => {
+            setChatListOpen(event.detail.isOpen);
+        };
+        
+        // Add event listener with type assertion
+        window.addEventListener('shelfStateChange', handleShelfStateChange as EventListener);
+        
+        // Clean up event listener on component unmount
+        return () => {
+            window.removeEventListener('shelfStateChange', handleShelfStateChange as EventListener);
+        };
+    }, []);
 
-    // Store previous messages for comparison to avoid infinite updates
     const prevMessagesRef = useRef<EnhancedConversationItem[]>([]);
 
     const {user} = useUser();
@@ -531,7 +544,8 @@ export const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
             <Box style={{
                 ...styles.chatArea,
                 marginLeft: chatListOpen ? '320px' : '28px',
-                transition: 'margin-left 0.3s ease'
+                width: chatListOpen ? 'calc(100% - 320px)' : 'calc(100% - 28px)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
             }}>
                 <Paper
                     p="xs"
