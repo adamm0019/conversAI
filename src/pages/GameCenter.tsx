@@ -17,6 +17,8 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { Header } from '../components/Header/Header';
 import { WordMatch } from '../components/Games/WordMatch';
+import { WordScramble } from '../components/Games/WordScramble';
+import { SentenceBuilder } from '../components/Games/SentenceBuilder';
 
 interface GameStats {
   gamesPlayed: number;
@@ -29,7 +31,7 @@ interface Game {
   title: string;
   description: string;
   difficulty: 'BEGINNER';
-  type: 'VOCABULARY';
+  type: 'VOCABULARY'
   stats: GameStats;
   language: string;
   available: boolean;
@@ -48,6 +50,34 @@ const mockGames: Game[] = [
       gamesPlayed: 15,
       highScore: 2800,
       lastPlayed: '2024-02-18'
+    }
+  },
+  {
+    id: '2',
+    title: 'Word Scramble',
+    description: 'Unscramble letters to form the correct word.',
+    difficulty: 'BEGINNER',
+    type: 'VOCABULARY',
+    language: 'Spanish',
+    available: true,
+    stats: {
+      gamesPlayed: 0,
+      highScore: 0,
+      lastPlayed: ''
+    }
+  },
+  {
+    id: '4',
+    title: 'Sentence Builder',
+    description: 'Arrange words to form grammatically correct sentences.',
+    difficulty: 'BEGINNER',
+    type: 'VOCABULARY',
+    language: 'Spanish',
+    available: true,
+    stats: {
+      gamesPlayed: 0,
+      highScore: 0,
+      lastPlayed: ''
     }
   },
 ];
@@ -205,6 +235,18 @@ export const GameCenter: React.FC = () => {
         >
           {selectedGame?.id === '1' && (
               <WordMatch
+                  onClose={close}
+                  onGameComplete={(score) => handleGameComplete(selectedGame.id, score)}
+              />
+          )}
+          {selectedGame?.id === '2' && (
+              <WordScramble
+                  onClose={close}
+                  onGameComplete={(score) => handleGameComplete(selectedGame.id, score)}
+              />
+          )}
+          {selectedGame?.id === '4' && (
+              <SentenceBuilder
                   onClose={close}
                   onGameComplete={(score) => handleGameComplete(selectedGame.id, score)}
               />

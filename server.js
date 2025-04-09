@@ -28,7 +28,7 @@ app.get('/api/get-signed-url', async (req, res) => {
       {
         method: "GET",
         headers: {
-          'xi-api-key': process.env.ELEVEN_LABS_API_KEY,
+          'xi-api-key': process.env.VITE_ELEVEN_LABS_API_KEY,
           'Content-Type': 'application/json'
         }
       }

@@ -11,7 +11,7 @@ import {
   IconFriends,
   IconDeviceGamepad2,
   IconLayoutDashboard,
-  IconFlame
+  IconFlame, IconMessageCircle, IconLanguage
 } from '@tabler/icons-react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import { Link } from 'react-router-dom';
@@ -19,7 +19,7 @@ import { headerStyles } from './styles';
 import { SettingsModal } from '../SettingsModal/SettingsModal';
 import { StreakNotification } from '../Streak/StreakNotification';
 import { useStreak } from '../../hooks/useStreak';
-import darkModeLogo from '../../../src/assets/conversationlogodarkmode.svg';
+import darkModeLogo from '../../../src/assets/conversationlogodarkmode.png';
 import lightModeLogo from '../../../src/assets/conversationlogolightmode.svg';
 
 import { motion } from 'framer-motion';
@@ -60,18 +60,73 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const Logo = () => (
-    <Link to="/">
-      <img
-        src={colorScheme === 'dark' ? darkModeLogo : lightModeLogo}
-        alt="Conversation Logo"
-        style={{
-          height: rem(170),
-          marginRight: rem(8),
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-    </Link>
+      <Link to="/">
+        <Group gap={4} style={{ userSelect: 'none' }}>
+          <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+          >
+            <Group gap={2} align="center">
+              <Text
+                  component="span"
+                  style={{
+                    fontSize: rem(24),
+                    fontWeight: 800,
+                    color: '#64b5f6',
+                    letterSpacing: '0.2px',
+                    position: 'relative',
+                    paddingRight: rem(2),
+                  }}
+              >
+                Convers
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2, duration: 0.4 }}
+                    style={{
+                      display: 'inline-block',
+                      position: 'relative',
+                    }}
+                >
+                  <Text
+                      component="span"
+                      style={{
+                        color: '#64b5f6',
+                        fontSize: rem(22),
+                        fontWeight: 900,
+                        letterSpacing: '-0.5px',
+                        marginLeft: rem(1),
+                      }}
+                  >
+                    AI
+                  </Text>
+                  <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.4, duration: 0.3 }}
+                      style={{
+                        position: 'absolute',
+                        top: rem(-8),
+                        right: rem(-12),
+                        transform: 'rotate(-15deg)',
+                      }}
+                  >
+                    <IconLanguage
+                        size={28}
+                        style={{
+                          color: '#64b5f6',
+                          opacity: 0.9,
+                          paddingLeft: rem(5),
+                        }}
+                    />
+                  </motion.div>
+                </motion.div>
+              </Text>
+            </Group>
+          </motion.div>
+        </Group>
+      </Link>
   );
 
   const selectedModeInfo = conversationModes.find(mode => mode.id === selectedMode);

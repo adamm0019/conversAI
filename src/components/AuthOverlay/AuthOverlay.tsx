@@ -8,7 +8,7 @@ It also contains styling using the old Mantine v3 createStyles API, found here: 
 
 import { Box, Paper, Text, Button, Stack } from '@mantine/core';
 import { createStyles } from '@mantine/styles'
-import darkModeLogo from '../../../src/assets/conversationlogodarkmode.svg';
+import darkModeLogo from '../../../src/assets/conversationlogodarkmode.png';
 import lightModeLogo from '../../../src/assets/conversationlogolightmode.svg';
 import { SignInButton } from "@clerk/clerk-react";
 import { useMantineColorScheme } from '@mantine/core';

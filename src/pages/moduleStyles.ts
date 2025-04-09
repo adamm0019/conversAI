@@ -1,51 +1,118 @@
 import { rem } from '@mantine/core';
+import { createStyles } from '@mantine/styles';
 
-// currently using this file to hold the styles for modules page
-
-export const moduleStyles = {
-  pathContainer: {
-    position: 'relative',
-    maxWidth: '800px',
-    margin: '0 auto',
-    padding: `${rem(20)} ${rem(40)}`,
-    minHeight: 'calc(100vh - 200px)',
-    overflowY: 'auto',
-  } as const,
-
+export const useModuleStyles = createStyles((theme) => ({
+  container: {
+    minHeight: 'calc(100vh - 60px)',
+  },
+  
+  tabsContainer: {
+    marginBottom: rem(32),
+  },
+  
   moduleCard: {
-    position: 'relative',
-    marginBottom: rem(40),
+    backgroundColor: 'var(--mantine-color-dark-7)',
     border: '1px solid var(--mantine-color-dark-4)',
-    background: 'rgba(37, 38, 43, 0.75)',
-    backdropFilter: 'blur(10px)',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.25s ease',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'visible',
+    position: 'relative',
+    
     '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+      transform: 'translateY(-5px)',
+      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
     },
-  } as const,
-
-  connectionLine: {
+    
+    '&.locked': {
+      backgroundColor: theme.colors.dark[8],
+      borderColor: theme.colors.dark[5],
+      opacity: 0.8,
+    },
+    
+    '&.completed': {
+      borderColor: theme.colors.green[7],
+    },
+  },
+  
+  statusBadge: {
     position: 'absolute',
-    top: '100%',
-    left: rem(47),
+    top: rem(-15),
+    right: rem(20),
+    width: rem(40),
     height: rem(40),
-    overflow: 'hidden',
-  } as const,
-
-  iconContainer: {
-    width: rem(48),
-    height: rem(48),
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'white',
-  } as const,
-
-  statusIcon: {
-    position: 'absolute',
-    top: rem(12),
-    right: rem(12),
-  } as const,
-};
+    border: `2px solid ${theme.colors.dark[7]}`,
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+  },
+  
+  levelCircle: {
+    width: rem(40),
+    height: rem(40),
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+  },
+  
+  skillBadge: {
+    fontSize: theme.fontSizes.xs,
+    padding: `${rem(2)} ${rem(8)}`,
+    borderRadius: theme.radius.sm,
+  },
+  
+  progressContainer: {
+    marginTop: 'auto',
+    padding: rem(16),
+  },
+  
+  progressBar: {
+    height: rem(8),
+    borderRadius: rem(4),
+  },
+  
+  actionButton: {
+    marginTop: rem(16),
+    borderRadius: theme.radius.md,
+  },
+  
+  infoRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: rem(12),
+  },
+  
+  infoLabel: {
+    fontSize: theme.fontSizes.xs,
+    color: theme.colors.gray[6],
+  },
+  
+  infoValue: {
+    fontSize: theme.fontSizes.sm,
+    fontWeight: 500,
+  },
+  
+  nextLesson: {
+    padding: `${rem(8)} ${rem(12)}`,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.dark[6],
+    marginTop: rem(12),
+  },
+  
+  achievementIcon: {
+    color: 'var(--mantine-color-yellow-4)',
+  },
+  
+  overallProgress: {
+    minWidth: rem(200),
+    backgroundColor: 'var(--mantine-color-dark-6)',
+    padding: rem(16),
+    borderRadius: rem(8),
+  },
+}));
