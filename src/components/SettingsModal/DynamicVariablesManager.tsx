@@ -12,7 +12,7 @@ import {
     Paper,
     Divider,
     Alert,
-    Tabs
+    Tabs,
 } from '@mantine/core';
 import { GlassUI } from '../GlassUI/GlassUI';
 import { IconInfoCircle, IconDeviceFloppy, IconRefresh } from '@tabler/icons-react';
@@ -24,16 +24,8 @@ interface DynamicVariablesManagerProps {
     onUpdate?: (variables: DynamicVariables) => void;
 }
 
-export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = ({
-                                                                                    onUpdate
-                                                                                }) => {
-    const {
-        profile,
-        getDynamicVariables,
-        updateDynamicVariables,
-        syncLanguageProgress
-    } = useProfile();
-
+export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = ({ onUpdate }) => {
+    const { profile, getDynamicVariables, updateDynamicVariables, syncLanguageProgress } = useProfile();
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -47,35 +39,27 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
     }, [profile]);
 
     const handleInputChange = (field: string, value: any) => {
-        setFormValues(prev => ({
+        setFormValues((prev) => ({
             ...prev,
-            [field]: value
+            [field]: value,
         }));
         setIsEditing(true);
     };
 
-    // Handle save
     const handleSave = async () => {
         if (!profile) return;
-
         setIsSaving(true);
-
         try {
-            // Save to Firebase
             const success = await updateDynamicVariables(formValues);
-
             if (success) {
                 notifications.show({
                     title: 'Variables Updated',
                     message: 'Your personalization settings have been saved.',
-                    color: 'green'
+                    color: 'green',
                 });
-
-                // Notify parent component
                 if (onUpdate) {
                     onUpdate(formValues as DynamicVariables);
                 }
-
                 setIsEditing(false);
             } else {
                 throw new Error('Failed to update variables');
@@ -84,46 +68,39 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
             notifications.show({
                 title: 'Error',
                 message: 'Failed to save your personalization settings.',
-                color: 'red'
+                color: 'red',
             });
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Sync with language progress
     const handleSync = async () => {
         setIsSaving(true);
-
         try {
             const success = await syncLanguageProgress();
-
             if (success) {
-                // Refresh form values
                 if (profile?.dynamicVariables) {
                     setFormValues(profile.dynamicVariables);
                 }
-
                 notifications.show({
                     title: 'Variables Synced',
                     message: 'Language progress has been synchronized.',
-                    color: 'blue'
+                    color: 'blue',
                 });
-
                 setIsEditing(false);
             }
         } catch (error) {
             notifications.show({
                 title: 'Sync Error',
                 message: 'Failed to synchronize language progress.',
-                color: 'red'
+                color: 'red',
             });
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Reset form
     const handleReset = () => {
         if (profile?.dynamicVariables) {
             setFormValues(profile.dynamicVariables);
@@ -141,9 +118,12 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
 
     return (
         <GlassUI p="xl" radius="lg">
-            <Title order={3} mb="md">Conversation Personalization</Title>
+            <Title order={3} mb="md">
+                Conversation Personalization
+            </Title>
             <Text c="dimmed" size="sm" mb="lg">
-                Customize how the AI responds to you by adjusting these variables. These settings will be applied to your language learning conversations.
+                Customize how the AI responds to you by adjusting these variables. These settings will be applied to your language
+                learning conversations.
             </Text>
 
             <Tabs value={activeTab} onChange={setActiveTab}>
@@ -162,7 +142,6 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
                                 value={formValues.user_name || ''}
                                 onChange={(e) => handleInputChange('user_name', e.target.value)}
                             />
-
                             <Select
                                 label="Target Language"
                                 description="Language you're learning"
@@ -313,7 +292,6 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
                             mb="md"
                         />
 
-                        {/* You can add more custom variables here */}
                         <Divider my="md" label="Add More Variables" labelPosition="center" />
 
                         <Text size="sm" c="dimmed" mb="md">

@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const AGENT_ID = 'TaDOThYRtPGeAcPDnfys'; // Your ElevenLabs agent ID
+const AGENT_ID = 'struNpxnJkL8IlMMev4O'; // Your ElevenLabs agent ID
 const WEBSOCKET_TIMEOUT = 300000; // 5 minutes in milliseconds
 
 // Note: For the server (Node.js), we still use process.env

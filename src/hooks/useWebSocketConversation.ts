@@ -32,7 +32,7 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
         serverUrl = 'http://localhost:3001/api/get-signed-url',
         autoReconnect = true,
         onMessageReceived,
-        agentId = 'TaDOThYRtPGeAcPDnfys', // Your ElevenLabs agent ID
+        agentId = 'struNpxnJkL8IlMMev4O', // Your ElevenLabs agent ID
         dynamicVariables = {} // Default empty object
     } = options;
 

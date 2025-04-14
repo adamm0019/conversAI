@@ -45,7 +45,7 @@ export const Home: React.FC = () => {
         updateDynamicVariables
     } = useWebSocketConversation({
         // Agent configuration
-        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'TaDOThYRtPGeAcPDnfys',
+        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'struNpxnJkL8IlMMev4O',
         // Ensure sanitized dynamic variables
         dynamicVariables: sanitizeDynamicVariables(getDynamicVariables()),
         autoReconnect: true,
@@ -239,7 +239,7 @@ export const Home: React.FC = () => {
                 selectedMode={selectedMode}
                 onModeChange={setSelectedMode}
                 onResetAPIKey={() => {}}
-                showSettings={false}
+                showSettings={true}
             />
 
             <AppShell.Main style={{
