@@ -1,4 +1,3 @@
-// src/components/Settings/DynamicVariablesManager.tsx
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -40,7 +39,6 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<string | null>('basic');
 
-    // Load current dynamic variables when profile changes
     useEffect(() => {
         if (profile) {
             const currentVars = profile.dynamicVariables || {};
@@ -48,7 +46,6 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
         }
     }, [profile]);
 
-    // Handle input changes
     const handleInputChange = (field: string, value: any) => {
         setFormValues(prev => ({
             ...prev,
@@ -109,7 +106,7 @@ export const DynamicVariablesManager: React.FC<DynamicVariablesManagerProps> = (
 
                 notifications.show({
                     title: 'Variables Synced',
-                    message: 'Language progress has been synchronized with your dynamic variables.',
+                    message: 'Language progress has been synchronized.',
                     color: 'blue'
                 });
 
