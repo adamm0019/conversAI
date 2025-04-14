@@ -1,7 +1,7 @@
 // src/services/UserProfileService.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase/firebaseConfig';
 import { DynamicVariables, sanitizeDynamicVariables } from '../types/dynamicVariables';
 
@@ -39,6 +39,22 @@ export interface UserProfile {
         aiVoice: string;
         dailyGoal: number; // minutes
     };
+    // Dynamic variables section
+    dynamicVariables: {
+        user_name: string;
+        subscription_tier: string;
+        language_level: string;
+        target_language: string;
+        days_streak: number;
+        vocabulary_mastered: number;
+        grammar_mastered: number;
+        total_progress: number;
+        // Custom variables
+        custom_greeting?: string;
+        learning_style?: string;
+        feedback_style?: string;
+        difficulty_preference?: string;
+    };
 }
 
 const DEFAULT_PROFILE: Omit<UserProfile, 'id' | 'email' | 'firstName' | 'lastName'> = {
@@ -70,6 +86,20 @@ const DEFAULT_PROFILE: Omit<UserProfile, 'id' | 'email' | 'firstName' | 'lastNam
         speechRecognition: true,
         aiVoice: 'alloy',
         dailyGoal: 15
+    },
+    dynamicVariables: {
+        user_name: 'there',
+        subscription_tier: 'free',
+        language_level: 'beginner',
+        target_language: 'Spanish',
+        days_streak: 0,
+        vocabulary_mastered: 0,
+        grammar_mastered: 0,
+        total_progress: 0,
+        custom_greeting: 'Welcome to your language learning journey',
+        learning_style: 'conversational',
+        feedback_style: 'encouraging',
+        difficulty_preference: 'balanced'
     }
 };
 
@@ -80,6 +110,7 @@ export const useUserProfile = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Generate default profile for a new user
     const createDefaultProfile = useCallback((): UserProfile => {
         if (!userId || !user) {
             throw new Error('User is not authenticated');
@@ -90,7 +121,9 @@ export const useUserProfile = () => {
             email: user.primaryEmailAddress?.emailAddress || '',
             firstName: user.firstName || '',
             lastName: user.lastName || '',
+            // First, spread DEFAULT_PROFILE
             ...DEFAULT_PROFILE,
+            // Then override displayName so it takes precedence
             displayName: user.firstName || 'Student',
         };
     }, [userId, user]);
@@ -259,6 +292,59 @@ export const useUserProfile = () => {
         return sortedLanguages[0];
     }, [profile]);
 
+    // Update dynamic variables
+    const updateDynamicVariables = useCallback(async (
+        updates: Partial<UserProfile['dynamicVariables']>
+    ): Promise<boolean> => {
+        if (!userId || !profile) {
+            setError('User is not authenticated or profile not loaded');
+            return false;
+        }
+
+        try {
+            const userDocRef = doc(db, 'userProfiles', userId);
+
+            // Merge with existing variables
+            const updatedVars = {
+                ...profile.dynamicVariables,
+                ...updates
+            };
+
+            await updateDoc(userDocRef, {
+                'dynamicVariables': updatedVars,
+                'updatedAt': serverTimestamp()
+            });
+
+            console.log('Dynamic variables updated:', updatedVars);
+            return true;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to update dynamic variables';
+            setError(errorMessage);
+            console.error('Error updating dynamic variables:', error);
+            return false;
+        }
+    }, [userId, profile]);
+
+    // Sync language progress with dynamic variables
+    const syncLanguageProgress = useCallback(async (): Promise<boolean> => {
+        if (!userId || !profile) return false;
+
+        const activeLanguage = getActiveLanguage();
+        if (!activeLanguage) return false;
+
+        // Create updates based on active language
+        const updates = {
+            target_language: activeLanguage.language,
+            language_level: activeLanguage.level,
+            days_streak: activeLanguage.streak,
+            vocabulary_mastered: activeLanguage.vocabulary.mastered,
+            grammar_mastered: activeLanguage.grammar.mastered,
+            total_progress: activeLanguage.progress
+        };
+
+        return await updateDynamicVariables(updates);
+    }, [userId, profile, getActiveLanguage, updateDynamicVariables]);
+
     // Generate dynamic variables for 11labs with proper typing
     const getDynamicVariables = useCallback((): DynamicVariables => {
         if (!profile) {
@@ -275,18 +361,25 @@ export const useUserProfile = () => {
             });
         }
 
-        const activeLanguage = getActiveLanguage();
-
+        // Use the stored dynamic variables directly
         const variables = {
-            user_name: profile.firstName || profile.displayName || 'there',
-            subscription_tier: profile.subscriptionTier || 'free',
-            language_level: activeLanguage?.level || 'beginner',
-            target_language: activeLanguage?.language || 'Spanish',
-            days_streak: activeLanguage?.streak || 0,
-            vocabulary_mastered: activeLanguage?.vocabulary.mastered || 0,
-            grammar_mastered: activeLanguage?.grammar.mastered || 0,
-            total_progress: activeLanguage?.progress || 0
+            ...profile.dynamicVariables
         };
+
+        // If active language has changed, update relevant variables
+        const activeLanguage = getActiveLanguage();
+        if (activeLanguage) {
+            variables.target_language = activeLanguage.language;
+            variables.language_level = activeLanguage.level;
+            variables.days_streak = activeLanguage.streak;
+            variables.vocabulary_mastered = activeLanguage.vocabulary.mastered;
+            variables.grammar_mastered = activeLanguage.grammar.mastered;
+            variables.total_progress = activeLanguage.progress;
+        }
+
+        variables.user_name = profile.firstName || profile.displayName || variables.user_name;
+
+        variables.subscription_tier = profile.subscriptionTier;
 
         // Sanitize to ensure no undefined values
         return sanitizeDynamicVariables(variables);
@@ -301,6 +394,8 @@ export const useUserProfile = () => {
         updateLanguageProgress,
         getLanguageProgress,
         getActiveLanguage,
-        getDynamicVariables
+        getDynamicVariables,
+        updateDynamicVariables,
+        syncLanguageProgress
     };
 };

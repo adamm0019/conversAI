@@ -12,8 +12,9 @@ type ProfileContextType = {
     updateLanguageProgress: (language: string, updates: Partial<UserLanguageProgress>) => Promise<boolean>;
     getLanguageProgress: (language: string) => UserLanguageProgress | null;
     getActiveLanguage: () => UserLanguageProgress | null;
-    // Update return type to match DynamicVariables interface
     getDynamicVariables: () => DynamicVariables;
+    updateDynamicVariables: (updates: Partial<UserProfile['dynamicVariables']>) => Promise<boolean>;
+    syncLanguageProgress: () => Promise<boolean>;
 };
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -36,7 +37,7 @@ export const useProfile = (): ProfileContextType => {
     return context;
 };
 
-// Helper hook to get dynamic variables for ElevenLabs with the correct return type
+// Helper hook to get dynamic variables for ElevenLabs
 export const useDynamicVariables = (): DynamicVariables => {
     const { getDynamicVariables } = useProfile();
     return getDynamicVariables();

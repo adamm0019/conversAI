@@ -26,6 +26,18 @@ export function sanitizeDynamicVariables(vars: Record<string, any>): DynamicVari
                 case 'total_progress':
                     result[key] = 0;
                     break;
+                case 'custom_greeting':
+                    result[key] = 'Welcome to your language learning journey';
+                    break;
+                case 'learning_style':
+                    result[key] = 'conversational';
+                    break;
+                case 'feedback_style':
+                    result[key] = 'encouraging';
+                    break;
+                case 'difficulty_preference':
+                    result[key] = 'balanced';
+                    break;
                 default:
                     result[key] = '';
             }
