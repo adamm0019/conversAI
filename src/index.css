@@ -1,4 +1,5 @@
 :root {
+  /* Original font/style settings */
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -11,6 +12,19 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Override Mantine-like variable names with your new palette.
+     Feel free to reorder them if you want darker vs. lighter usage. */
+  --mantine-color-dark-8: #22577A; /* darkest-ish teal */
+  --mantine-color-dark-7: #38A3A5;
+  --mantine-color-dark-6: #57CC99;
+  --mantine-color-dark-5: #80ED99;
+  --mantine-color-dark-4: #C7F9CC;
+
+  /* If you use “primary” variables for user bubbles, etc.: */
+  --mantine-color-primary-8: #38A3A5;
+  --mantine-color-primary-7: #57CC99;
+  --mantine-color-primary-5: #80ED99;
 }
 
 a {

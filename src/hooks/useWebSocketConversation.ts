@@ -1,9 +1,10 @@
-// src/hooks/useEnhancedWebSocketConversation.ts
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
 import { Conversation } from '@11labs/client';
 import { EnhancedConversationItem } from '../types/conversation';
 import { ConnectionState } from '../types/connection';
+import { useUser } from '@clerk/clerk-react';
+import { DynamicVariables, sanitizeDynamicVariables } from '../types/dynamicVariables';
 
 interface WebSocketHookState {
     messages: EnhancedConversationItem[];
@@ -21,14 +22,21 @@ interface WebSocketHookOptions {
     reconnectAttempts?: number;
     reconnectDelay?: number;
     onMessageReceived?: (message: EnhancedConversationItem) => void;
+    agentId?: string;
+    // Explicitly typed dynamic variables
+    dynamicVariables?: DynamicVariables;
 }
 
-export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) => {
+export const useWebSocketConversation = (options: WebSocketHookOptions) => {
     const {
         serverUrl = 'http://localhost:3001/api/get-signed-url',
         autoReconnect = true,
-        onMessageReceived
+        onMessageReceived,
+        agentId = 'TaDOThYRtPGeAcPDnfys', // Your ElevenLabs agent ID
+        dynamicVariables = {} // Default empty object
     } = options;
+
+    const { user } = useUser();
 
     const [state, setState] = useState<WebSocketHookState>({
         messages: [],
@@ -45,6 +53,22 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isConnectingRef = useRef<boolean>(false);
     const responseCallbackRef = useRef<((message: string) => void) | null>(null);
+
+    const getDefaultDynamicVariables = useCallback((): DynamicVariables => {
+        const defaults: DynamicVariables = {
+            user_name: user?.firstName || 'there',
+            subscription_tier: 'standard',
+            language_level: 'beginner',
+            target_language: 'Spanish',
+            days_streak: 0,
+            vocabulary_mastered: 0,
+            grammar_mastered: 0,
+            total_progress: 0
+        };
+
+        // Merge defaults with provided variables and ensure no undefined values
+        return sanitizeDynamicVariables({ ...defaults, ...dynamicVariables });
+    }, [user, dynamicVariables]);
 
     const createMessageObject = useCallback((role: 'user' | 'assistant', content: string): EnhancedConversationItem => {
         return {
@@ -106,9 +130,17 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
             if (!res.ok) throw new Error('Failed to fetch signed URL');
             const { signedUrl } = await res.json();
 
+            // Get personalization variables with proper typing
+            const personalizedVars: DynamicVariables = sanitizeDynamicVariables(getDefaultDynamicVariables());
+
+            console.log('Starting conversation with dynamic variables:', personalizedVars);
+
             const conversation = await Conversation.startSession({
                 signedUrl,
                 clientTools: {},
+                // Add dynamic variables to the session config
+                dynamicVariables: personalizedVars,
+                agentId: agentId,
                 onConnect: ({ conversationId }) => {
                     setState(prev => ({
                         ...prev,
@@ -196,7 +228,7 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
             }
             return false;
         }
-    }, [createMessageObject, mapStatus, onMessageReceived, autoReconnect, options.reconnectAttempts, options.reconnectDelay, serverUrl]);
+    }, [createMessageObject, mapStatus, onMessageReceived, autoReconnect, options.reconnectAttempts, options.reconnectDelay, serverUrl, getDefaultDynamicVariables, agentId]);
 
     const sendMessage = useCallback(async (text: string, responseCallback?: (response: string) => void): Promise<boolean> => {
         if (!conversationRef.current?.isOpen()) {
@@ -226,6 +258,27 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
             return false;
         }
     }, [createMessageObject]);
+
+    // Update dynamic variables at runtime
+    const updateDynamicVariables = useCallback((newVariables: Record<string, any>): void => {
+        if (!conversationRef.current?.isOpen()) {
+            console.warn('Cannot update dynamic variables: not connected to ElevenLabs');
+            return;
+        }
+
+        // Sanitize variables to ensure type safety
+        const safeVariables = sanitizeDynamicVariables(newVariables);
+
+        // Update conversation with new dynamic variables
+        try {
+            console.log('Updating dynamic variables:', safeVariables);
+
+            // This will be replaced with the actual API method when available
+            // conversationRef.current.updateDynamicVariables(safeVariables);
+        } catch (error) {
+            console.error('Failed to update dynamic variables:', error);
+        }
+    }, []);
 
     const startRecording = useCallback(async (): Promise<boolean> => {
         if (state.isRecording) return true;
@@ -285,6 +338,7 @@ export const useEnhancedWebSocketConversation = (options: WebSocketHookOptions) 
         stopRecording,
         getInputAudioLevel,
         getOutputAudioLevel,
-        setVolume
+        setVolume,
+        updateDynamicVariables // Method to update variables at runtime
     };
 };

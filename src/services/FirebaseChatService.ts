@@ -1,4 +1,3 @@
-// src/services/FirebaseChatService.ts
 import { useAuth } from '@clerk/clerk-react';
 import {
     collection,
@@ -74,14 +73,14 @@ export const useFirebaseChatService = () => {
                     const chatData = {
                         title: 'New Chat',
                         subtitle: typeof firstMessage.content === 'string'
-                            ? firstMessage.content.substring(0, 50) + (firstMessage.content.length > 50 ? '...' : '')
+                            ? firstMessage.content.substring(0, 50) + (firstMessage.content.length > 50)
                             : 'New conversation',
                         timestamp: serverTimestamp(),
                         created_at: serverTimestamp(),
                         updated_at: serverTimestamp(),
                         unread: 0,
                         isArchived: false,
-                        messages: [],  // Will add messages in batch
+                        messages: [],
                         userId: userId,
                         lastMessage: ''
                     };
@@ -184,14 +183,14 @@ export const useFirebaseChatService = () => {
 
         // Generate a title based on the first message or use provided title
         const autoTitle = firstMessage && typeof firstMessage.content === 'string'
-            ? firstMessage.content.substring(0, 30) + (firstMessage.content.length > 30 ? '...' : '')
+            ? firstMessage.content.substring(0, 30) + (firstMessage.content.length > 30)
             : 'New Conversation';
 
         const chatData = {
             title: options?.title || autoTitle,
             subtitle: firstMessage
                 ? (typeof firstMessage.content === 'string'
-                    ? firstMessage.content.substring(0, 50) + '...'
+                    ? firstMessage.content.substring(0, 50)
                     : 'New conversation')
                 : 'Empty conversation',
             timestamp: serverTimestamp(),

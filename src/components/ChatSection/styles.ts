@@ -66,7 +66,10 @@ export const styles = {
     position: 'relative' as const,
     overflow: 'hidden',
     backgroundColor: 'var(--mantine-color-dark-8)',
-    backgroundImage: 'radial-gradient(circle at 100% 100%, rgba(37, 38, 43, 0.2) 0%, transparent 40%), radial-gradient(circle at 0% 0%, rgba(32, 105, 202, 0.1) 0%, transparent 40%)',
+    // UPDATED for new teal gradient. Adjust RGBA or remove entirely as you see fit:
+    backgroundImage:
+        'radial-gradient(circle at 100% 100%, rgba(34, 87, 122, 0.2) 0%, transparent 40%), ' +
+        'radial-gradient(circle at 0% 0%, rgba(56, 163, 165, 0.1) 0%, transparent 40%)',
     backgroundAttachment: 'fixed',
   },
 
@@ -104,7 +107,8 @@ export const styles = {
     backgroundColor: 'var(--mantine-color-dark-8)',
     boxShadow: '0 0 20px rgba(0, 0, 0, 0.3)',
     borderRight: '1px solid var(--mantine-color-dark-5)',
-    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition:
+        'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transform: 'translateX(-100%)', // Default to hidden position
     backdropFilter: 'blur(8px)',
   },
@@ -187,7 +191,7 @@ export const styles = {
       borderColor: 'var(--mantine-color-dark-4)',
       '& > div > div:lastChild': {
         opacity: 1,
-      }
+      },
     },
     '&::before': {
       content: '""',
@@ -217,7 +221,7 @@ export const styles = {
     },
     '& > div > div:lastChild': {
       opacity: 1,
-    }
+    },
   },
 
   dateDividerChat: {
@@ -434,12 +438,13 @@ export const styles = {
     margin: '28px 0 20px',
     '&::before': {
       content: '""',
-      position: 'absolute',
+      position: 'absolute' as const,
       left: 0,
       right: 0,
       top: '50%',
       height: '1px',
-      background: 'linear-gradient(to right, transparent, var(--mantine-color-dark-4), transparent)',
+      background:
+          'linear-gradient(to right, transparent, var(--mantine-color-dark-4), transparent)',
       zIndex: 0,
     },
     animation: `${fadeIn} 0.5s ease-out`,
@@ -470,8 +475,6 @@ export const styles = {
     backdropFilter: 'blur(4px)',
     padding: '32px',
     borderRadius: '16px',
-    backgroundColor: 'rgba(26, 27, 30, 0.3)',
-    border: '1px solid var(--mantine-color-dark-5)',
     animation: `${fadeIn} 0.8s ease-out`,
     transition: 'transform 0.3s ease, opacity 0.3s ease',
     '&:hover': {

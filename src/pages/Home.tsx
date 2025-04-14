@@ -1,18 +1,30 @@
+// src/pages/Home.tsx
 import { AppShell } from '@mantine/core';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
-import { useEnhancedWebSocketConversation } from '../hooks/useEnhancedWebSocketConversation';
-import { EnhancedChatSection } from '../components/ChatSection/EnhancedChatSection';
+import { useWebSocketConversation } from '../hooks/useWebSocketConversation';
+import EnhancedChatSection from '../components/ChatSection/EnhancedChatSection';
 import { Header } from '../components/Header/Header';
 import { AuthOverlay } from '../components/AuthOverlay/AuthOverlay';
 import { ConnectionState } from '../types/connection';
 import { notifications } from '@mantine/notifications';
+import { useProfile } from '../contexts/ProfileContext';
+import { sanitizeDynamicVariables } from '../types/dynamicVariables';
+import { GlassUI } from '../components/GlassUI/GlassUI';
+import EnhancedThinkingAnimation from '../components/ThinkingAnimation';
 
 export const Home: React.FC = () => {
     const [selectedMode, setSelectedMode] = useState('tutor');
 
     const clientCanvasRef = useRef<HTMLCanvasElement>(null);
     const serverCanvasRef = useRef<HTMLCanvasElement>(null);
+
+    // Get user profile data and dynamic variables
+    const {
+        profile,
+        isLoading: profileLoading,
+        getDynamicVariables
+    } = useProfile();
 
     // Initialize 11labs conversation with the official client library
     const {
@@ -29,16 +41,27 @@ export const Home: React.FC = () => {
         startRecording,
         stopRecording,
         getInputAudioLevel,
-        getOutputAudioLevel
-    } = useEnhancedWebSocketConversation({
+        getOutputAudioLevel,
+        updateDynamicVariables
+    } = useWebSocketConversation({
         // Agent configuration
-        agentId: 'TaDOThYRtPGeAcPDnfys', // Your ElevenLabs agent ID
-        apiKey: import.meta.env.VITE_ELEVEN_LABS_API_KEY,
+        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'TaDOThYRtPGeAcPDnfys',
+        // Ensure sanitized dynamic variables
+        dynamicVariables: sanitizeDynamicVariables(getDynamicVariables()),
         autoReconnect: true,
         onMessageReceived: (message) => {
             console.log("Message received in hook callback:", message);
         }
     });
+
+    // Update dynamic variables when profile changes
+    useEffect(() => {
+        if (profile && connectionState === ConnectionState.CONNECTED) {
+            // Sanitize variables to ensure type safety
+            const variables = sanitizeDynamicVariables(getDynamicVariables());
+            updateDynamicVariables(variables);
+        }
+    }, [profile, connectionState, getDynamicVariables, updateDynamicVariables]);
 
     // Wrapper for startConversation that returns void
     const handleConnect = useCallback(async (): Promise<void> => {
@@ -162,6 +185,44 @@ export const Home: React.FC = () => {
         }
     }, [connectionState, getInputAudioLevel, getOutputAudioLevel, isRecording, isSpeaking]);
 
+    // Show welcome message with personalization
+    const renderWelcomeMessage = () => {
+        if (profileLoading) {
+            return (
+                <GlassUI p="lg" radius="lg" animate withHover style={{ textAlign: 'center' }}>
+                    <EnhancedThinkingAnimation text="Loading your profile..." variant="rings" />
+                </GlassUI>
+            );
+        }
+
+        if (!profile) {
+            return (
+                <GlassUI p="lg" radius="lg" animate withHover style={{ textAlign: 'center' }}>
+                    <div>Welcome to your language learning journey!</div>
+                </GlassUI>
+            );
+        }
+
+        const activeLanguage = profile.targetLanguages.length > 0
+            ? profile.targetLanguages[0]
+            : null;
+
+        return (
+            <GlassUI p="lg" radius="lg" animate withHover style={{ textAlign: 'center', maxWidth: 800, margin: '0 auto' }}>
+                <h2>Welcome back, {profile.firstName || profile.displayName}!</h2>
+                {activeLanguage && (
+                    <div>
+                        <p>Ready to continue your {activeLanguage.language} learning?</p>
+                        <p>You're currently at {activeLanguage.level} level with {activeLanguage.progress}% progress.</p>
+                        {activeLanguage.streak > 0 && (
+                            <p>🔥 You're on a {activeLanguage.streak} day streak. Keep it up!</p>
+                        )}
+                    </div>
+                )}
+            </GlassUI>
+        );
+    };
+
     return (
         <AppShell
             header={{ height: 60 }}
@@ -189,6 +250,13 @@ export const Home: React.FC = () => {
                 width: '100%'
             }}>
                 <SignedIn>
+                    {/* Show welcome message when no messages yet */}
+                    {messages.length === 0 && connectionState !== ConnectionState.CONNECTED && (
+                        <div style={{ padding: '2rem' }}>
+                            {renderWelcomeMessage()}
+                        </div>
+                    )}
+
                     <EnhancedChatSection
                         connectionState={connectionState}
                         isThinking={isThinking}

@@ -151,24 +151,3 @@ export const theme = createTheme({
   cursorType: 'pointer',
   transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
 });
-
-// unused css variables - to be removed
-
-export const cssVariables = {
-  colors: {
-    primary: 'var(--mantine-color-primary-6)',
-    primaryLight: 'var(--mantine-color-primary-4)',
-    primaryDark: 'var(--mantine-color-primary-8)',
-    background: 'var(--mantine-color-dark-7)',
-    surface: 'var(--mantine-color-dark-6)',
-    text: 'var(--mantine-color-white)',
-    textSecondary: 'var(--mantine-color-dark-0)',
-  },
-  spacing: {
-    xs: 'var(--mantine-spacing-xs)',
-    sm: 'var(--mantine-spacing-sm)',
-    md: 'var(--mantine-spacing-md)',
-    lg: 'var(--mantine-spacing-lg)',
-    xl: 'var(--mantine-spacing-xl)',
-  },
-};
