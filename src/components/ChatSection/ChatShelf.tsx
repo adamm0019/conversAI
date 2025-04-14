@@ -10,7 +10,7 @@ import {
   IconLayoutSidebarRightExpand,
 } from '@tabler/icons-react';
 import { styles } from './styles';
-import { useFirebaseChat, Chat } from '../../lib/firebase/firebaseConfig';
+import { Chat, useFirebaseChat } from '../../lib/firebase/firebaseConfig';
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 
@@ -19,6 +19,7 @@ interface ChatShelfProps {
   onSelectChat: (id: string) => void;
   onCloseChat: (id: string) => void;
   onNewChat: () => void;
+  chats: Chat[];
 }
 
 interface GroupedChats {
@@ -29,10 +30,10 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
                                                       activeChat,
                                                       onSelectChat,
                                                       onCloseChat,
-                                                      onNewChat
+                                                      onNewChat,
+                                                      chats
                                                     }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [chats, setChats] = useState<Chat[]>([]);
   const [groupedChats, setGroupedChats] = useState<GroupedChats>({});
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -40,18 +41,13 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
   const [chatToRename, setChatToRename] = useState<string | null>(null);
   const [newChatTitle, setNewChatTitle] = useState('');
 
-  const { subscribeToChats, archiveChat, deleteChat, renameChat } = useFirebaseChat();
+  const { archiveChat, deleteChat, renameChat } = useFirebaseChat();
   const shelfRef = useRef<HTMLDivElement>(null);
   const hoverZoneRef = useRef<HTMLDivElement>(null);
 
-  // Grouping logic
   useEffect(() => {
-    const unsubscribe = subscribeToChats((updatedChats) => {
-      setChats(updatedChats);
-      groupChatsByDate(updatedChats);
-    });
-    return () => unsubscribe();
-  }, []);
+    groupChatsByDate(chats);
+  }, [chats]);
 
   const groupChatsByDate = (chats: Chat[]) => {
     const groups: GroupedChats = { Today: [], Yesterday: [], 'This Week': [], Older: [] };
@@ -100,7 +96,6 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
     setDeleteModalOpen(true);
   };
 
-  // Auto-open/close shelf based on hover
   useEffect(() => {
     const hoverZone = hoverZoneRef.current;
     if (!hoverZone) return;
@@ -119,7 +114,6 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
 
   return (
       <>
-        {/* Hover zone to trigger the shelf open */}
         <div
             ref={hoverZoneRef}
             style={{
@@ -135,7 +129,6 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
           <IconLayoutSidebarRightExpand size={16} style={{ color: '#909296', position: 'absolute', top: 8, left: 2 }} />
         </div>
 
-        {/* The Shelf */}
         <motion.div
             ref={shelfRef}
             style={{ ...styles.shelf }}
@@ -214,7 +207,6 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
           </div>
         </motion.div>
 
-        {/* Rename Modal */}
         <Modal opened={renameModalOpen} onClose={() => {
           setRenameModalOpen(false);
           setChatToRename(null);
@@ -244,7 +236,6 @@ export const ChatShelf: React.FC<ChatShelfProps> = ({
           </Group>
         </Modal>
 
-        {/* Delete Modal */}
         <Modal opened={deleteModalOpen} onClose={() => {
           setDeleteModalOpen(false);
           setChatToDelete(null);

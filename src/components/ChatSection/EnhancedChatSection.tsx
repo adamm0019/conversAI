@@ -17,6 +17,7 @@ import MessageBubble from './MessageBubble';
 import { styles } from './styles';
 import { ChatShelf } from './ChatShelf';
 import { ConnectionState } from '../../types/connection';
+import { Chat } from '../../lib/firebase/firebaseConfig';
 
 interface EnhancedChatSectionProps {
     connectionState: ConnectionState;
@@ -32,10 +33,12 @@ interface EnhancedChatSectionProps {
     onConnect: () => Promise<void>;
     onSendMessage: (message: string, callback?: (response: string) => void) => Promise<void>;
     onNewChat?: () => void;
+    onSelectChat: (id: string) => void;
     clientCanvasRef: React.RefObject<HTMLCanvasElement>;
     serverCanvasRef: React.RefObject<HTMLCanvasElement>;
     messages: EnhancedConversationItem[];
     conversationId?: string | null;
+    chats: Chat[];
 }
 
 const getTimeOfDay = () => {
@@ -69,10 +72,14 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
                                                                      onStopRecording,
                                                                      onConnect,
                                                                      onSendMessage,
+                                                                     onNewChat,
+                                                                     onSelectChat,
                                                                      connectionError,
                                                                      messages,
                                                                      clientCanvasRef,
-                                                                     serverCanvasRef
+                                                                     serverCanvasRef,
+                                                                     conversationId,
+                                                                     chats
                                                                  }) => {
     const { user } = useUser();
     const [message, setMessage] = useState('');
@@ -119,10 +126,11 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
     return (
         <Box style={styles.container}>
             <ChatShelf
-                activeChat={''}
-                onSelectChat={() => {}}
+                activeChat={conversationId || ''}
+                onSelectChat={onSelectChat}
                 onCloseChat={() => {}}
-                onNewChat={() => {}}
+                onNewChat={onNewChat || (() => {})}
+                chats={chats}
             />
 
             <Box style={styles.chatArea}>

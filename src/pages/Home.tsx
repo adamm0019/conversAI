@@ -1,7 +1,6 @@
-// src/pages/Home.tsx
 import { AppShell } from '@mantine/core';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useWebSocketConversation } from '../hooks/useWebSocketConversation';
 import EnhancedChatSection from '../components/ChatSection/EnhancedChatSection';
 import { Header } from '../components/Header/Header';
@@ -12,21 +11,34 @@ import { useProfile } from '../contexts/ProfileContext';
 import { sanitizeDynamicVariables } from '../types/dynamicVariables';
 import { GlassUI } from '../components/GlassUI/GlassUI';
 import EnhancedThinkingAnimation from '../components/ThinkingAnimation';
+import { useFirebaseChat, Chat } from '../lib/firebase/firebaseConfig';
+import { EnhancedConversationItem } from '../types/conversation';
 
 export const Home: React.FC = () => {
     const [selectedMode, setSelectedMode] = useState('tutor');
+    const { user, isLoaded } = useUser();
 
     const clientCanvasRef = useRef<HTMLCanvasElement>(null);
     const serverCanvasRef = useRef<HTMLCanvasElement>(null);
 
-    // Get user profile data and dynamic variables
     const {
         profile,
         isLoading: profileLoading,
         getDynamicVariables
     } = useProfile();
 
-    // Initialize 11labs conversation with the official client library
+    const {
+        createNewChat,
+        addMessageToChat,
+        getUserChats,
+        subscribeToChats,
+        initializeFirebase,
+        createUserProfile
+    } = useFirebaseChat();
+
+    const [activeChatId, setActiveChatId] = useState<string | null>(null);
+    const [allChats, setAllChats] = useState<Chat[]>([]);
+
     const {
         connectionState,
         isThinking,
@@ -44,9 +56,7 @@ export const Home: React.FC = () => {
         getOutputAudioLevel,
         updateDynamicVariables
     } = useWebSocketConversation({
-        // Agent configuration
         agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'struNpxnJkL8IlMMev4O',
-        // Ensure sanitized dynamic variables
         dynamicVariables: sanitizeDynamicVariables(getDynamicVariables()),
         autoReconnect: true,
         onMessageReceived: (message) => {
@@ -54,16 +64,32 @@ export const Home: React.FC = () => {
         }
     });
 
-    // Update dynamic variables when profile changes
+    useEffect(() => {
+        if (user && isLoaded) {
+            const setupFirebase = async () => {
+                const isInitialized = await initializeFirebase();
+                if (isInitialized) {
+                    await createUserProfile({
+                        email: user.primaryEmailAddress?.emailAddress || '',
+                    });
+
+                    subscribeToChats((chats) => {
+                        setAllChats(chats);
+                    });
+                }
+            };
+
+            setupFirebase();
+        }
+    }, [user, isLoaded, initializeFirebase, createUserProfile, subscribeToChats]);
+
     useEffect(() => {
         if (profile && connectionState === ConnectionState.CONNECTED) {
-            // Sanitize variables to ensure type safety
             const variables = sanitizeDynamicVariables(getDynamicVariables());
             updateDynamicVariables(variables);
         }
     }, [profile, connectionState, getDynamicVariables, updateDynamicVariables]);
 
-    // Wrapper for startConversation that returns void
     const handleConnect = useCallback(async (): Promise<void> => {
         try {
             console.log("Home: Connecting to WebSocket");
@@ -78,14 +104,12 @@ export const Home: React.FC = () => {
         }
     }, [startConversation]);
 
-    // Wrapper for endConversation that returns Promise<void>
     const handleDisconnect = useCallback(async (): Promise<void> => {
         console.log("Home: Disconnecting WebSocket");
         endConversation();
-        return Promise.resolve(); // Make sure it returns a Promise<void>
+        return Promise.resolve();
     }, [endConversation]);
 
-    // Handle start recording with proper connection check
     const handleStartRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Starting recording");
         try {
@@ -104,14 +128,12 @@ export const Home: React.FC = () => {
         }
     }, [connectionState, handleConnect, startRecording]);
 
-    // Handle stop recording
     const handleStopRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Stopping recording");
         stopRecording();
         return Promise.resolve();
     }, [stopRecording]);
 
-    // Send a text message
     const handleSendMessage = useCallback(async (message: string, callback?: (response: string) => void): Promise<void> => {
         console.log("Home: Sending message:", message);
         try {
@@ -120,7 +142,49 @@ export const Home: React.FC = () => {
                 await handleConnect();
             }
 
-            const result = await sendMessage(message, callback);
+            const userMessageObj: EnhancedConversationItem = {
+                id: Date.now().toString(),
+                object: 'chat.completion',
+                role: 'user',
+                type: 'message',
+                content: message,
+                formatted: {
+                    text: message,
+                },
+                created_at: new Date().toISOString(),
+                timestamp: Date.now(),
+                status: 'completed'
+            };
+
+            if (!activeChatId) {
+                const newChatId = await createNewChat(userMessageObj);
+                setActiveChatId(newChatId);
+            } else {
+                await addMessageToChat(activeChatId, userMessageObj);
+            }
+
+            const result = await sendMessage(message, (response) => {
+                if (callback) callback(response);
+
+                const assistantMessageObj: EnhancedConversationItem = {
+                    id: Date.now().toString(),
+                    object: 'chat.completion',
+                    role: 'assistant',
+                    type: 'message',
+                    content: response,
+                    formatted: {
+                        text: response,
+                    },
+                    created_at: new Date().toISOString(),
+                    timestamp: Date.now(),
+                    status: 'completed'
+                };
+
+                if (activeChatId) {
+                    addMessageToChat(activeChatId, assistantMessageObj);
+                }
+            });
+
             console.log("Message sent to WebSocket, result:", result);
 
             if (!result) {
@@ -138,9 +202,16 @@ export const Home: React.FC = () => {
                 color: 'red',
             });
         }
-    }, [connectionState, handleConnect, sendMessage]);
+    }, [connectionState, handleConnect, sendMessage, activeChatId, createNewChat, addMessageToChat]);
 
-    // Clean up connection on unmount
+    const handleSelectChat = useCallback(async (chatId: string) => {
+        setActiveChatId(chatId);
+    }, []);
+
+    const handleNewChat = useCallback(async () => {
+        setActiveChatId(null);
+    }, []);
+
     useEffect(() => {
         return () => {
             console.log("Home: Cleaning up WebSocket connection");
@@ -148,25 +219,19 @@ export const Home: React.FC = () => {
         };
     }, [endConversation]);
 
-    // For debugging - log when connection state changes
     useEffect(() => {
         console.log("Connection state changed:", connectionState);
     }, [connectionState]);
 
-    // Set up audio level visualization
     useEffect(() => {
         if (connectionState === ConnectionState.CONNECTED) {
             let animationFrame: number | null = null;
 
             const updateAudioLevels = () => {
-                // Only update visualizations if connected
                 if (connectionState === ConnectionState.CONNECTED) {
-                    // Get audio levels from the conversation
                     const inputLevel = getInputAudioLevel();
                     const outputLevel = getOutputAudioLevel();
 
-                    // Draw visualizations if needed
-                    // For debugging
                     if (isRecording || isSpeaking) {
                         console.log(`Audio levels - Input: ${inputLevel.toFixed(2)}, Output: ${outputLevel.toFixed(2)}`);
                     }
@@ -185,7 +250,6 @@ export const Home: React.FC = () => {
         }
     }, [connectionState, getInputAudioLevel, getOutputAudioLevel, isRecording, isSpeaking]);
 
-    // Show welcome message with personalization
     const renderWelcomeMessage = () => {
         if (profileLoading) {
             return (
@@ -250,7 +314,6 @@ export const Home: React.FC = () => {
                 width: '100%'
             }}>
                 <SignedIn>
-                    {/* Show welcome message when no messages yet */}
                     {messages.length === 0 && connectionState !== ConnectionState.CONNECTED && (
                         <div style={{ padding: '2rem' }}>
                             {renderWelcomeMessage()}
@@ -268,11 +331,13 @@ export const Home: React.FC = () => {
                         onDisconnect={handleDisconnect}
                         onConnect={handleConnect}
                         onSendMessage={handleSendMessage}
-                        onNewChat={handleConnect}
+                        onNewChat={handleNewChat}
+                        onSelectChat={handleSelectChat}
                         clientCanvasRef={clientCanvasRef}
                         serverCanvasRef={serverCanvasRef}
                         messages={messages}
-                        conversationId={conversationId}
+                        conversationId={activeChatId}
+                        chats={allChats}
                     />
                 </SignedIn>
                 <SignedOut>

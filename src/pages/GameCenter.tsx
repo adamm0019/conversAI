@@ -161,6 +161,10 @@ export const GameCenter: React.FC = () => {
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
 
+  const handleModeChange = (mode: string) => {
+    console.log('Mode changed:', mode);
+  };
+
   const handleGameComplete = (gameId: string, score: number) => {
     const game = mockGames.find(g => g.id === gameId);
     if (game) {
@@ -186,9 +190,9 @@ export const GameCenter: React.FC = () => {
       >
         <Header
             selectedMode="tutor"
-            onModeChange={(mode) => console.log('Mode changed:', mode)}
+            onModeChange={handleModeChange}
             onResetAPIKey={() => console.log('Reset API key')}
-            showSettings={false}
+            showSettings={true} // Changed to true to display settings icon
         />
 
         <AppShell.Main>
