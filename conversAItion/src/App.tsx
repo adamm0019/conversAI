@@ -2,7 +2,7 @@ import { MantineProvider } from '@mantine/core';
 import { theme } from './styles/theme';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
-import { Home } from './pages/Home';
+import { Home }  from './pages/Home';
 import { GameCenter } from './pages/GameCenter';
 import { ProfileDashboard } from './pages/ProfileDashboard';
 import ModulesPage from './pages/Modules';
@@ -11,6 +11,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useEffect } from 'react';
 import { useFirebaseChat } from './lib/firebase/firebaseConfig';
+import { ProfileProvider } from './contexts/ProfileContext'; // Import ProfileProvider
 
 function App() {
   const { user, isLoaded } = useUser();
@@ -39,26 +40,33 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <MantineProvider theme={theme} defaultColorScheme="dark">
-        <Notifications position="top-right" />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route
-            path="/games"
-            element={user ? <GameCenter /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/dashboard"
-            element={user ? <ProfileDashboard /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/modules"
-            element={user ? <ModulesPage /> : <Navigate to="/" replace />}
-          />
-        </Routes>
-      </MantineProvider>
-    </BrowserRouter>
+      <BrowserRouter>
+        <MantineProvider theme={theme} defaultColorScheme="dark">
+          <Notifications position="top-right" />
+          <ProfileProvider>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route
+                  path="/games"
+                  element={user ? <GameCenter /> : <Navigate to="/" replace />}
+              />
+              <Route
+                  path="/dashboard"
+                  element={user ? <ProfileDashboard /> : <Navigate to="/" replace />}
+              />
+              <Route
+                  path="/modules"
+                  element={user ? <ModulesPage /> : <Navigate to="/" replace />}
+              />
+              {/* Legacy route for the original home */}
+              <Route
+                  path="/classic"
+                  element={<Home />}
+              />
+            </Routes>
+          </ProfileProvider>
+        </MantineProvider>
+      </BrowserRouter>
   );
 }
 

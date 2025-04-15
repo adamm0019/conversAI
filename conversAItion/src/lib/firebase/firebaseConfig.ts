@@ -80,35 +80,36 @@ export const useFirebaseChat = () => {
 
   const createNewChat = async (firstMessage?: EnhancedConversationItem): Promise<string> => {
     if (!userId) throw new Error('User not authenticated');
-    
+
     const chatData = {
-        title: 'New Chat',
-        subtitle: firstMessage 
-            ? (typeof firstMessage.content === 'string' 
-                ? firstMessage.content.substring(0, 50) + '...'
-                : 'New conversation')
-            : 'Empty conversation',
-        timestamp: serverTimestamp(),
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-        unread: 0,
-        isArchived: false,
-        messages: firstMessage ? [{
-            ...firstMessage,
-            timestamp: new Date().toISOString(),
-            created_at: new Date().toISOString()
-        }] : [],
-        userId: userId,
-        lastMessage: firstMessage 
-            ? (typeof firstMessage.content === 'string' 
-                ? firstMessage.content 
-                : 'Message sent')
-            : ''
+      title: 'New Chat',
+      subtitle: firstMessage
+          ? (typeof firstMessage.content === 'string'
+              ? firstMessage.content.substring(0, 50) + '...'
+              : 'New conversation')
+          : 'Empty conversation',
+      timestamp: serverTimestamp(),
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+      unread: 0,
+      isArchived: false,
+      messages: firstMessage ? [{
+        ...firstMessage,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      }] : [],
+      userId: userId,
+      lastMessage: firstMessage
+          ? (typeof firstMessage.content === 'string'
+              ? firstMessage.content
+              : 'Message sent')
+          : ''
     };
 
+    // Make sure we're using the 'chats' collection, not 'users'
     const chatRef = await addDoc(collection(db, 'chats'), chatData);
     return chatRef.id;
-};
+  };
 
   const addMessageToChat = async (chatId: string, message: EnhancedConversationItem) => {
     if (!userId) throw new Error('User not authenticated');

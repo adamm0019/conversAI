@@ -16,7 +16,7 @@ export const theme = createTheme({
       '#061539',
     ],
 
-    // dark mode
+    // dark mode with slightly bluer blacks
     dark: [
       '#C1C2C5',
       '#A6A7AB',
@@ -26,8 +26,8 @@ export const theme = createTheme({
       '#2C2E33',
       '#25262B',
       '#1A1B1E',
-      '#141517',
-      '#101113',
+      '#121418',  // Slightly bluer dark
+      '#0A0B0E',  // Slightly bluer black
     ],
   },
 
@@ -39,13 +39,20 @@ export const theme = createTheme({
       styles: (theme: { radius: { md: any; }; }) => ({
         root: {
           borderRadius: theme.radius.md,
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+          },
         },
       }),
     },
     AppShell: {
       styles: (theme: { colors: { dark: any[]; }; }) => ({
         main: {
-          backgroundColor: theme.colors.dark[7],
+          backgroundColor: theme.colors.dark[8],
+          backgroundImage: 'radial-gradient(circle at 30% 20%, rgba(25, 118, 210, 0.05) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(37, 38, 43, 0.1) 0%, transparent 40%)',
+          backgroundAttachment: 'fixed',
         },
       }),
     },
@@ -53,6 +60,10 @@ export const theme = createTheme({
       styles: (theme: { colors: { dark: any[]; }; }) => ({
         root: {
           backgroundColor: theme.colors.dark[6],
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.1)'
+          },
         },
       }),
     },
@@ -60,7 +71,52 @@ export const theme = createTheme({
       styles: (theme: { colors: { dark: any[]; }; }) => ({
         input: {
           backgroundColor: theme.colors.dark[6],
+          transition: 'all 0.2s ease',
+          '&:focus': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)'
+          },
         },
+      }),
+    },
+    TextInput: {
+      styles: (theme: { colors: { dark: any[]; }; }) => ({
+        input: {
+          backgroundColor: theme.colors.dark[6],
+          transition: 'all 0.2s ease',
+          '&:focus': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)'
+          },
+        },
+      }),
+    },
+    ActionIcon: {
+      styles: () => ({
+        root: {
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            transform: 'scale(1.1)',
+          },
+        },
+      }),
+    },
+    Modal: {
+      styles: (theme: { colors: { dark: any[]; }; }) => ({
+        content: {
+          backgroundColor: theme.colors.dark[7],
+          backdropFilter: 'blur(10px)',
+        },
+        header: {
+          backgroundColor: theme.colors.dark[8],
+        },
+      }),
+    },
+    Tooltip: {
+      styles: () => ({
+        tooltip: {
+          backdropFilter: 'blur(6px)',
+        }
       }),
     },
   },
@@ -87,25 +143,11 @@ export const theme = createTheme({
     lg: rem(24),
     xl: rem(32),
   },
+  defaultGradient: {
+    from: 'primary.6',
+    to: 'primary.8',
+    deg: 135,
+  },
+  cursorType: 'pointer',
+  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
 });
-
-// unused css variables - to be removed
-
-export const cssVariables = {
-  colors: {
-    primary: 'var(--mantine-color-primary-6)',
-    primaryLight: 'var(--mantine-color-primary-4)',
-    primaryDark: 'var(--mantine-color-primary-8)',
-    background: 'var(--mantine-color-dark-7)',
-    surface: 'var(--mantine-color-dark-6)',
-    text: 'var(--mantine-color-white)',
-    textSecondary: 'var(--mantine-color-dark-0)',
-  },
-  spacing: {
-    xs: 'var(--mantine-spacing-xs)',
-    sm: 'var(--mantine-spacing-sm)',
-    md: 'var(--mantine-spacing-md)',
-    lg: 'var(--mantine-spacing-lg)',
-    xl: 'var(--mantine-spacing-xl)',
-  },
-};

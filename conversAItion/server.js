@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const AGENT_ID = 'LclYQZaTV1A9E1fgKwF9';
+const AGENT_ID = 'struNpxnJkL8IlMMev4O';
 
 // configuring cors
 const corsOptions = {
@@ -28,7 +28,7 @@ app.get('/api/get-signed-url', async (req, res) => {
       {
         method: "GET",
         headers: {
-          'xi-api-key': process.env.ELEVEN_LABS_API_KEY,
+          'xi-api-key': process.env.VITE_ELEVEN_LABS_API_KEY,
           'Content-Type': 'application/json'
         }
       }

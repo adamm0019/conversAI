@@ -1,317 +1,344 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
+import { Conversation } from '@11labs/client';
+import { EnhancedConversationItem } from '../types/conversation';
+import { ConnectionState } from '../types/connection';
+import { useUser } from '@clerk/clerk-react';
+import { DynamicVariables, sanitizeDynamicVariables } from '../types/dynamicVariables';
 
-interface Message {
-    id: string;
-    role: 'assistant' | 'user';
-    content: string;
-    timestamp: number;
-}
-
-interface ConversationState {
-    messages: Message[];
-    isConnected: boolean;
-    isLoading: boolean;
-    isInitializing: boolean;
+interface WebSocketHookState {
+    messages: EnhancedConversationItem[];
+    connectionState: ConnectionState;
     error: string | null;
     isSpeaking: boolean;
+    isRecording: boolean;
+    isThinking: boolean;
+    conversationId: string | null;
 }
 
-export const useWebSocketConversation = () => {
-    const [state, setState] = useState<ConversationState>({
+interface WebSocketHookOptions {
+    serverUrl?: string;
+    autoReconnect?: boolean;
+    reconnectAttempts?: number;
+    reconnectDelay?: number;
+    onMessageReceived?: (message: EnhancedConversationItem) => void;
+    agentId?: string;
+    // Explicitly typed dynamic variables
+    dynamicVariables?: DynamicVariables;
+}
+
+export const useWebSocketConversation = (options: WebSocketHookOptions) => {
+    const {
+        serverUrl = 'http://localhost:3001/api/get-signed-url',
+        autoReconnect = true,
+        onMessageReceived,
+        agentId = 'struNpxnJkL8IlMMev4O', // Your ElevenLabs agent ID
+        dynamicVariables = {} // Default empty object
+    } = options;
+
+    const { user } = useUser();
+
+    const [state, setState] = useState<WebSocketHookState>({
         messages: [],
-        isConnected: false,
-        isLoading: false,
-        isInitializing: false,
+        connectionState: ConnectionState.DISCONNECTED,
         error: null,
         isSpeaking: false,
+        isRecording: false,
+        isThinking: false,
+        conversationId: null
     });
 
-    const wsRef = useRef<WebSocket | null>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const streamRef = useRef<MediaStream | null>(null);
-    const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-    const AGENT_ID = 'LclYQZaTV1A9E1fgKwF9';
-    const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-    const RECONNECT_DELAY = 3000; // 3 seconds
+    const conversationRef = useRef<Conversation | null>(null);
+    const reconnectCountRef = useRef<number>(0);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isConnectingRef = useRef<boolean>(false);
+    const responseCallbackRef = useRef<((message: string) => void) | null>(null);
 
-    const initAudioContext = useCallback(() => {
-        if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        return audioContextRef.current;
+    const getDefaultDynamicVariables = useCallback((): DynamicVariables => {
+        const defaults: DynamicVariables = {
+            user_name: user?.firstName || 'there',
+            subscription_tier: 'standard',
+            language_level: 'beginner',
+            target_language: 'Spanish',
+            days_streak: 0,
+            vocabulary_mastered: 0,
+            grammar_mastered: 0,
+            total_progress: 0
+        };
+
+        // Merge defaults with provided variables and ensure no undefined values
+        return sanitizeDynamicVariables({ ...defaults, ...dynamicVariables });
+    }, [user, dynamicVariables]);
+
+    const createMessageObject = useCallback((role: 'user' | 'assistant', content: string): EnhancedConversationItem => {
+        return {
+            id: Date.now().toString(),
+            object: 'chat.completion',
+            role: role,
+            type: 'message',
+            content: content,
+            formatted: {
+                text: content,
+                transcript: content
+            },
+            created_at: new Date().toISOString(),
+            timestamp: Date.now(),
+            status: 'completed'
+        };
     }, []);
 
-    const clearHeartbeat = useCallback(() => {
-        if (heartbeatIntervalRef.current) {
-            clearInterval(heartbeatIntervalRef.current);
-            heartbeatIntervalRef.current = undefined;
-        }
-    }, []);
-
-    const startHeartbeat = useCallback(() => {
-        clearHeartbeat();
-        heartbeatIntervalRef.current = setInterval(() => {
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ type: 'heartbeat' }));
-            }
-        }, HEARTBEAT_INTERVAL);
-    }, [clearHeartbeat]);
-
-    const closeWebSocket = useCallback(() => {
-        clearHeartbeat();
+    const closeConnection = useCallback(() => {
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
         }
 
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current = null;
-        }
-
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-
-        if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
+        if (conversationRef.current) {
+            conversationRef.current.endSession().catch(err => console.error('Error ending session:', err));
+            conversationRef.current = null;
         }
 
         setState(prev => ({
             ...prev,
-            isConnected: false,
-            isLoading: false,
-            isSpeaking: false
+            connectionState: ConnectionState.DISCONNECTED,
+            isSpeaking: false,
+            isRecording: false,
+            isThinking: false
         }));
-    }, [clearHeartbeat]);
-    
-    const playAudio = useCallback(async (base64Audio: string) => {
-        try {
-            const audioContext = initAudioContext();
-            const audioData = Buffer.from(base64Audio, 'base64');
-            const audioBuffer = await audioContext.decodeAudioData(audioData.buffer);
+    }, []);
 
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioContext.destination);
-
-            source.start(0);
-            setState(prev => ({ ...prev, isSpeaking: true }));
-
-            source.onended = () => {
-                setState(prev => ({ ...prev, isSpeaking: false }));
-            };
-        } catch (error) {
-            console.error('Error playing audio:', error);
+    const mapStatus = useCallback((status: "connecting" | "connected" | "disconnecting" | "disconnected"): ConnectionState => {
+        switch (status) {
+            case 'connecting': return ConnectionState.CONNECTING;
+            case 'connected': return ConnectionState.CONNECTED;
+            case 'disconnecting': return ConnectionState.RECONNECTING;
+            case 'disconnected': return ConnectionState.DISCONNECTED;
+            default: return ConnectionState.DISCONNECTED;
         }
-    }, [initAudioContext]);
+    }, []);
 
-    const getSignedUrl = async () => {
-        const response = await fetch(`${import.meta.env.VITE_ELEVEN_SERVER_URL}/api/get-signed-url`);
-        if (!response.ok) {
-            throw new Error('Failed to get signed URL');
-        }
-        const data = await response.json();
-        return data.signedUrl;
-    };
+    const startConversation = useCallback(async (): Promise<boolean> => {
+        if (isConnectingRef.current) return false;
+        if (conversationRef.current?.isOpen()) return true;
 
-    const startConversation = useCallback(async () => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-            console.log('WebSocket already connected');
-            return;
-        }
+        isConnectingRef.current = true;
 
         try {
-            setState(prev => ({ ...prev, isLoading: true, error: null }));
-            const signedUrl = await getSignedUrl();
+            setState(prev => ({ ...prev, connectionState: ConnectionState.CONNECTING, error: null }));
 
-            wsRef.current = new WebSocket(signedUrl);
+            const res = await fetch(serverUrl);
+            if (!res.ok) throw new Error('Failed to fetch signed URL');
+            const { signedUrl } = await res.json();
 
-            wsRef.current.onopen = () => {
-                console.log('WebSocket connected');
-                startHeartbeat();
-                setState(prev => ({
-                    ...prev,
-                    isConnected: true,
-                    isLoading: false,
-                    error: null
-                }));
-            };
+            // Get personalization variables with proper typing
+            const personalizedVars: DynamicVariables = sanitizeDynamicVariables(getDefaultDynamicVariables());
 
-            wsRef.current.onmessage = async (event) => {
-                try {
-                    const data = JSON.parse(event.data);
+            console.log('Starting conversation with dynamic variables:', personalizedVars);
 
-                    if (data.type === 'heartbeat_ack') {
-                        return;
+            const conversation = await Conversation.startSession({
+                signedUrl,
+                clientTools: {},
+                // Add dynamic variables to the session config
+                dynamicVariables: personalizedVars,
+                agentId: agentId,
+                onConnect: ({ conversationId }) => {
+                    setState(prev => ({
+                        ...prev,
+                        connectionState: ConnectionState.CONNECTED,
+                        error: null,
+                        conversationId
+                    }));
+                    reconnectCountRef.current = 0;
+                    isConnectingRef.current = false;
+                },
+                onDisconnect: () => {
+                    setState(prev => ({
+                        ...prev,
+                        connectionState: ConnectionState.DISCONNECTED,
+                        isSpeaking: false,
+                        isRecording: false,
+                        isThinking: false
+                    }));
+                },
+                onMessage: ({ message, source }) => {
+                    const role = source === 'ai' ? 'assistant' : 'user';
+                    const newMessage = createMessageObject(role, message);
+                    setState(prev => ({
+                        ...prev,
+                        messages: [...prev.messages, newMessage],
+                        isThinking: false
+                    }));
+                    if (onMessageReceived && source === 'ai') onMessageReceived(newMessage);
+                    if (responseCallbackRef.current && source === 'ai') {
+                        responseCallbackRef.current(message);
+                        responseCallbackRef.current = null;
                     }
-
-                    if (data.type === 'agent_response' && data.agent_response_event?.agent_response) {
-                        const newMessage: Message = {
-                            id: Date.now().toString(),
-                            role: 'assistant',
-                            content: data.agent_response_event.agent_response,
-                            timestamp: Date.now(),
-                        };
+                },
+                onError: (message, context) => {
+                    setState(prev => ({
+                        ...prev,
+                        error: message,
+                        connectionState: ConnectionState.ERROR
+                    }));
+                    notifications.show({ title: 'Connection Error', message, color: 'red' });
+                    isConnectingRef.current = false;
+                },
+                onStatusChange: ({ status }) => {
+                    setState(prev => ({
+                        ...prev,
+                        connectionState: mapStatus(status)
+                    }));
+                },
+                onModeChange: ({ mode }) => {
+                    setState(prev => ({
+                        ...prev,
+                        isSpeaking: mode === 'speaking',
+                        isRecording: mode === 'listening'
+                    }));
+                },
+                onDebug: (props) => {
+                    if (props.type === 'thinking') {
                         setState(prev => ({
                             ...prev,
-                            messages: [...prev.messages, newMessage]
+                            isThinking: true
                         }));
                     }
+                },
+                onCanSendFeedbackChange: () => {},
+                onAudio: () => {}
+            });
 
-                    if (data.type === 'audio' && data.audio_event?.audio) {
-                        await playAudio(data.audio_event.audio);
-                    }
-                } catch (error) {
-                    console.error('Error processing message:', error);
-                }
-            };
-
-            wsRef.current.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setState(prev => ({
-                    ...prev,
-                    error: 'Connection error',
-                    isConnected: false,
-                    isLoading: false
-                }));
-                closeWebSocket();
-            };
-
-            wsRef.current.onclose = () => {
-                console.log('WebSocket closed');
-                closeWebSocket();
-
-                // Attempt to reconnect
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    console.log('Attempting to reconnect...');
-                    startConversation();
-                }, RECONNECT_DELAY);
-            };
-
+            conversationRef.current = conversation;
+            return true;
         } catch (error) {
-            console.error('Connection error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Connection failed';
             setState(prev => ({
                 ...prev,
-                error: error instanceof Error ? error.message : 'Connection failed',
-                isLoading: false
+                connectionState: ConnectionState.ERROR,
+                error: errorMessage
             }));
-            throw error;
+            notifications.show({ title: 'Connection Error', message: errorMessage, color: 'red' });
+            isConnectingRef.current = false;
+            if (autoReconnect && reconnectCountRef.current < (options.reconnectAttempts || 5)) {
+                reconnectCountRef.current++;
+                const delay = (options.reconnectDelay || 3000) * reconnectCountRef.current;
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    startConversation();
+                }, delay);
+            }
+            return false;
         }
-    }, [closeWebSocket, playAudio, startHeartbeat]);
+    }, [createMessageObject, mapStatus, onMessageReceived, autoReconnect, options.reconnectAttempts, options.reconnectDelay, serverUrl, getDefaultDynamicVariables, agentId]);
 
-    const sendMessage = useCallback((text: string) => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket not connected');
-            notifications.show({
-                title: 'Connection Error',
-                message: 'Not connected to server. Please try again.',
-                color: 'red',
-            });
+    const sendMessage = useCallback(async (text: string, responseCallback?: (response: string) => void): Promise<boolean> => {
+        if (!conversationRef.current?.isOpen()) {
+            notifications.show({ title: 'Connection Error', message: 'Not connected to ElevenLabs.', color: 'red' });
+            return false;
+        }
+
+        try {
+            const userMessage = createMessageObject('user', text);
+            setState(prev => ({
+                ...prev,
+                messages: [...prev.messages, userMessage],
+                isThinking: true
+            }));
+
+            if (responseCallback) {
+                responseCallbackRef.current = responseCallback;
+                setTimeout(() => {
+                    responseCallbackRef.current = null;
+                }, 30000);
+            }
+
+            conversationRef.current.sendContextualUpdate(text);
+            return true;
+        } catch (error) {
+            notifications.show({ title: 'Error', message: 'Failed to send message.', color: 'red' });
+            return false;
+        }
+    }, [createMessageObject]);
+
+    // Update dynamic variables at runtime
+    const updateDynamicVariables = useCallback((newVariables: Record<string, any>): void => {
+        if (!conversationRef.current?.isOpen()) {
+            console.warn('Cannot update dynamic variables: not connected to ElevenLabs');
             return;
         }
 
+        // Sanitize variables to ensure type safety
+        const safeVariables = sanitizeDynamicVariables(newVariables);
+
+        // Update conversation with new dynamic variables
         try {
-            wsRef.current.send(JSON.stringify({
-                text,
-                type: 'text'
-            }));
+            console.log('Updating dynamic variables:', safeVariables);
 
-            const userMessage: Message = {
-                id: Date.now().toString(),
-                role: 'user',
-                content: text,
-                timestamp: Date.now(),
-            };
-
-            setState(prev => ({
-                ...prev,
-                messages: [...prev.messages, userMessage]
-            }));
+            // This will be replaced with the actual API method when available
+            // conversationRef.current.updateDynamicVariables(safeVariables);
         } catch (error) {
-            console.error('Error sending message:', error);
-            notifications.show({
-                title: 'Error',
-                message: 'Failed to send message. Please try again.',
-                color: 'red',
-            });
+            console.error('Failed to update dynamic variables:', error);
         }
     }, []);
 
-    const startRecording = useCallback(async () => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-            throw new Error('WebSocket not connected');
+    const startRecording = useCallback(async (): Promise<boolean> => {
+        if (state.isRecording) return true;
+
+        if (!conversationRef.current?.isOpen()) {
+            const connected = await startConversation();
+            if (!connected) return false;
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            streamRef.current = stream;
-
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = mediaRecorder;
-
-            mediaRecorder.ondataavailable = async (event) => {
-                if (event.data.size > 0) {
-                    const arrayBuffer = await event.data.arrayBuffer();
-                    const base64Audio = Buffer.from(arrayBuffer).toString('base64');
-
-                    if (wsRef.current?.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(JSON.stringify({
-                            audio_data: base64Audio,
-                            type: 'audio_data'
-                        }));
-                    }
-                }
-            };
-
-            mediaRecorder.start(100);
-            setState(prev => ({ ...prev, isRecording: true }));
+            return true;
         } catch (error) {
-            console.error('Error starting recording:', error);
-            throw error;
+            notifications.show({ title: 'Recording Error', message: 'Could not start recording.', color: 'red' });
+            return false;
         }
-    }, []);
+    }, [state.isRecording, startConversation]);
 
     const stopRecording = useCallback(() => {
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current = null;
-        }
-
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-
-        setState(prev => ({ ...prev, isRecording: false }));
+        if (conversationRef.current) conversationRef.current.setMicMuted(true);
     }, []);
 
-    const endConversation = useCallback(async (): Promise<void> => {
-        return new Promise((resolve) => {
-            closeWebSocket();
-            resolve();
+    const endConversation = useCallback(() => {
+        closeConnection();
+        setState({
+            messages: [],
+            connectionState: ConnectionState.DISCONNECTED,
+            error: null,
+            isSpeaking: false,
+            isRecording: false,
+            isThinking: false,
+            conversationId: null
         });
-    }, [closeWebSocket]);
+    }, [closeConnection]);
 
     useEffect(() => {
-        return () => {
-            closeWebSocket();
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-            }
-        };
-    }, [closeWebSocket]);
+        return () => closeConnection();
+    }, [closeConnection]);
+
+    const getInputAudioLevel = useCallback(() => conversationRef.current?.getInputVolume() || 0, []);
+    const getOutputAudioLevel = useCallback(() => conversationRef.current?.getOutputVolume() || 0, []);
+    const setVolume = useCallback((volume: number) => {
+        conversationRef.current?.setVolume({ volume });
+    }, []);
 
     return {
-        ...state,
+        connectionState: state.connectionState,
+        isThinking: state.isThinking,
+        isRecording: state.isRecording,
+        isSpeaking: state.isSpeaking,
+        error: state.error,
+        messages: state.messages,
+        conversationId: state.conversationId,
         startConversation,
         endConversation,
         sendMessage,
         startRecording,
-        stopRecording
+        stopRecording,
+        getInputAudioLevel,
+        getOutputAudioLevel,
+        setVolume,
+        updateDynamicVariables // Method to update variables at runtime
     };
 };

@@ -1,87 +1,102 @@
-# ConversAItion
+# ConversAI - Realtime AI Language Learning Assistant
 
-A language learning application powered by Eleven Labs AI.
-
-## Deployment to Vercel
-
-### 1. Deploy the Eleven Labs Server
-
-First, deploy the server that handles Eleven Labs API interactions:
-
-```bash
-cd eleven-server
-vercel
-```
-
-After deployment, copy the deployment URL (e.g., https://eleven-server.vercel.app).
-
-### 2. Set up Environment Variables
-
-In Vercel's project settings, add the following environment variables:
-
-```
-VITE_ELEVEN_LABS_API_KEY=your_api_key_here
-VITE_ELEVEN_SERVER_URL=https://eleven-server.vercel.app
-```
-
-### 3. Deploy the Main Application
-
-From the project root:
-
-```bash
-vercel
-```
-
-## Development Setup
-
-1. Install dependencies:
-```bash
-npm install
-cd eleven-server && npm install
-```
-
-2. Create environment files:
-
-`.env` for development:
-```
-VITE_ELEVEN_LABS_API_KEY=your_api_key_here
-VITE_ELEVEN_SERVER_URL=http://localhost:3001
-```
-
-`.env.production` for production:
-```
-VITE_ELEVEN_LABS_API_KEY=your_api_key_here
-VITE_ELEVEN_SERVER_URL=https://eleven-server.vercel.app
-```
-
-3. Start the development servers:
-
-In one terminal:
-```bash
-cd eleven-server && npm run dev
-```
-
-In another terminal:
-```bash
-npm run dev
-```
+An interactive language learning application powered by OpenAI's real-time API, featuring voice-based conversations, real-time transcription, and adaptive learning capabilities.
 
 ## Features
 
-- Real-time voice conversations with AI language tutors
-- Multiple conversation modes:
-  - Language Tutor: Structured learning with a patient teacher
-  - Friendly Chat: Casual conversation with a native speaker
-  - Expert Mode: Advanced discussions on specific topics
-- Progress tracking and statistics
-- Dark/Light mode support
-- Responsive design for all devices
+### Core Functionality
+- **Real-time Voice Interaction**: Natural conversations with AI language tutor
+- **Dual Voice Detection Modes**:
+  - Push-to-Talk (Manual)
+  - Voice Activity Detection (Automatic)
+- **Multi-Language Support**:
+  - Spanish
+  - French
+  - German
+  - Italian
+  - Portuguese
+
+### Technical Features
+- Real-time audio visualization
+- WebSocket-based communication
+- Low-latency voice processing
+- Dynamic transcription
+- Event logging and monitoring
+
+### Learning Features
+- Proficiency level tracking
+- Pronunciation practice
+- Grammar checking
+- Vocabulary review
+- Conversation history
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+- OpenAI API key
+- ElevenLabs API key
+
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/adamm0019/conversAItion-vite.git
+
+# Navigate to project directory
+cd conversAItion-vite
+
+# Install dependencies
+npm install
+
+# Create environment file
+cp .env.example .env
+
+# Add your OpenAI API key to .env
+VITE_OPENAI_API_KEY=your_api_key_here
+
+# Add your ElevenLabs API key to .env
+VITE_ELEVEN_LABS_API_KEY
+
+# Start the development server
+npm run dev
+```
+
+### Running the Local Relay Server
+```bash
+# Start the relay server
+cd eleven-server
+node index.js
+```
 
 ## Tech Stack
 
-- React + TypeScript
-- Vite
-- Mantine UI
-- Eleven Labs AI
-- Express (server)
-- Vercel (deployment)
+- **Frontend Framework**: React with TypeScript
+- **Build Tool**: Vite
+- **UI Components**: Mantine UI
+- **State Management**: React Hooks
+- **Audio Processing**: Web Audio API
+- **API Integration**: OpenAI Real-time API, ElevenLabs Agent API
+- **Styling**: Mantine Core + framer-motion + Tabler Icons
+
+
+## Usage
+
+1. **Start a Session**:
+   - Click 'Start new chat' to initialize
+   - Enter text in chat input area or use microphone to record audio
+
+2. **Voice Interaction**:
+   - Use Push-to-Talk or VAD mode
+   - Speak naturally with the AI tutor
+   - View real-time transcription
+
+3. **Learning Tools**:
+   - Helpful language learning games
+   - Grammar checking features
+   - Review vocabulary
+   - Track progress
+
+## Contact
+
+Adam Malone - adam-malone@hotmail.co.uk
