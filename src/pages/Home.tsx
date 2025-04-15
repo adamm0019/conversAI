@@ -1,4 +1,5 @@
-import { AppShell } from '@mantine/core';
+// src/pages/Home.tsx
+import { AppShell, LoadingOverlay } from '@mantine/core'; // Added LoadingOverlay
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useWebSocketConversation } from '../hooks/useWebSocketConversation';
@@ -9,36 +10,25 @@ import { ConnectionState } from '../types/connection';
 import { notifications } from '@mantine/notifications';
 import { useProfile } from '../contexts/ProfileContext';
 import { sanitizeDynamicVariables } from '../types/dynamicVariables';
-import { GlassUI } from '../components/GlassUI/GlassUI';
-import EnhancedThinkingAnimation from '../components/ThinkingAnimation';
-import { useFirebaseChat, Chat } from '../lib/firebase/firebaseConfig';
-import { EnhancedConversationItem } from '../types/conversation';
+// Removed GlassUI and EnhancedThinkingAnimation imports if only used for the removed welcome message
 
 export const Home: React.FC = () => {
-    const [selectedMode, setSelectedMode] = useState('tutor');
-    const { user, isLoaded } = useUser();
+    const [selectedMode, setSelectedMode] = useState('tutor'); // Or load from profile/settings
 
+    // Refs for potential audio visualizations (kept but not used in current render)
     const clientCanvasRef = useRef<HTMLCanvasElement>(null);
     const serverCanvasRef = useRef<HTMLCanvasElement>(null);
 
+    const { user } = useUser(); // Get Clerk user info if needed
+
+    // Get user profile data and dynamic variables
     const {
         profile,
         isLoading: profileLoading,
         getDynamicVariables
     } = useProfile();
 
-    const {
-        createNewChat,
-        addMessageToChat,
-        getUserChats,
-        subscribeToChats,
-        initializeFirebase,
-        createUserProfile
-    } = useFirebaseChat();
-
-    const [activeChatId, setActiveChatId] = useState<string | null>(null);
-    const [allChats, setAllChats] = useState<Chat[]>([]);
-
+    // WebSocket Conversation Hook
     const {
         connectionState,
         isThinking,
@@ -54,272 +44,210 @@ export const Home: React.FC = () => {
         stopRecording,
         getInputAudioLevel,
         getOutputAudioLevel,
-        updateDynamicVariables
+        updateDynamicVariables,
     } = useWebSocketConversation({
         agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'struNpxnJkL8IlMMev4O',
-        dynamicVariables: sanitizeDynamicVariables(getDynamicVariables()),
+        dynamicVariables: profile ? sanitizeDynamicVariables(getDynamicVariables()) : {}, // Pass empty if no profile yet
         autoReconnect: true,
         onMessageReceived: (message) => {
             console.log("Message received in hook callback:", message);
-        }
+        },
+        // Add other necessary options if your hook supports them
     });
 
+    // Update dynamic variables when profile loads or changes while connected
     useEffect(() => {
-        if (user && isLoaded) {
-            const setupFirebase = async () => {
-                const isInitialized = await initializeFirebase();
-                if (isInitialized) {
-                    await createUserProfile({
-                        email: user.primaryEmailAddress?.emailAddress || '',
-                    });
-
-                    subscribeToChats((chats) => {
-                        setAllChats(chats);
-                    });
-                }
-            };
-
-            setupFirebase();
-        }
-    }, [user, isLoaded, initializeFirebase, createUserProfile, subscribeToChats]);
-
-    useEffect(() => {
-        if (profile && connectionState === ConnectionState.CONNECTED) {
+        if (profile && !profileLoading && connectionState === ConnectionState.CONNECTED) {
             const variables = sanitizeDynamicVariables(getDynamicVariables());
+            console.log("Home: Updating dynamic variables:", variables);
             updateDynamicVariables(variables);
         }
-    }, [profile, connectionState, getDynamicVariables, updateDynamicVariables]);
+    }, [profile, profileLoading, connectionState, getDynamicVariables, updateDynamicVariables]);
+
+    // --- Connection & Action Handlers ---
+
+    const ensureConnected = useCallback(async (): Promise<boolean> => {
+        if (connectionState !== ConnectionState.CONNECTED) {
+            console.log("Home: Not connected, attempting to connect...");
+            try {
+                await startConversation();
+                // It might take a moment for the state to update,
+                // consider awaiting a state change or adding a small delay if needed,
+                // or rely on the hook to manage subsequent actions after connection.
+                return true; // Indicate connection was initiated
+            } catch (err: any) {
+                console.error("Connection error:", err);
+                notifications.show({
+                    title: 'Connection Error',
+                    message: err.message || 'Failed to connect to voice service',
+                    color: 'red',
+                });
+                return false; // Indicate connection failed
+            }
+        }
+        return connectionState === ConnectionState.CONNECTED; // Return true if already connected
+    }, [connectionState, startConversation]);
 
     const handleConnect = useCallback(async (): Promise<void> => {
-        try {
-            console.log("Home: Connecting to WebSocket");
-            await startConversation();
-        } catch (error) {
-            console.error("Connection error:", error);
-            notifications.show({
-                title: 'Connection Error',
-                message: error instanceof Error ? error.message : 'Failed to connect to voice service',
-                color: 'red',
-            });
-        }
-    }, [startConversation]);
+        await ensureConnected();
+    }, [ensureConnected]);
 
     const handleDisconnect = useCallback(async (): Promise<void> => {
         console.log("Home: Disconnecting WebSocket");
         endConversation();
-        return Promise.resolve();
     }, [endConversation]);
 
     const handleStartRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Starting recording");
-        try {
-            if (connectionState !== ConnectionState.CONNECTED) {
-                console.log("Not connected, connecting first");
-                await handleConnect();
+        const connected = await ensureConnected();
+        if (connected) {
+            try {
+                await startRecording();
+            } catch (err: any) {
+                console.error("Recording error:", err);
+                notifications.show({
+                    title: 'Microphone Error',
+                    message: err.message || 'Could not access microphone. Please check permissions.',
+                    color: 'red',
+                });
             }
-            await startRecording();
-        } catch (error) {
-            console.error("Recording error:", error);
-            notifications.show({
-                title: 'Microphone Error',
-                message: 'Could not access microphone. Please check your browser permissions.',
-                color: 'red',
-            });
+        } else {
+            console.warn("Home: Cannot start recording, connection not established.");
+            // Optionally show a notification
         }
-    }, [connectionState, handleConnect, startRecording]);
+    }, [ensureConnected, startRecording]);
 
     const handleStopRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Stopping recording");
         stopRecording();
-        return Promise.resolve();
     }, [stopRecording]);
 
     const handleSendMessage = useCallback(async (message: string, callback?: (response: string) => void): Promise<void> => {
         console.log("Home: Sending message:", message);
-        try {
-            if (connectionState !== ConnectionState.CONNECTED) {
-                console.log("Not connected, connecting first");
-                await handleConnect();
-            }
-
-            const userMessageObj: EnhancedConversationItem = {
-                id: Date.now().toString(),
-                object: 'chat.completion',
-                role: 'user',
-                type: 'message',
-                content: message,
-                formatted: {
-                    text: message,
-                },
-                created_at: new Date().toISOString(),
-                timestamp: Date.now(),
-                status: 'completed'
-            };
-
-            if (!activeChatId) {
-                const newChatId = await createNewChat(userMessageObj);
-                setActiveChatId(newChatId);
-            } else {
-                await addMessageToChat(activeChatId, userMessageObj);
-            }
-
-            const result = await sendMessage(message, (response) => {
-                if (callback) callback(response);
-
-                const assistantMessageObj: EnhancedConversationItem = {
-                    id: Date.now().toString(),
-                    object: 'chat.completion',
-                    role: 'assistant',
-                    type: 'message',
-                    content: response,
-                    formatted: {
-                        text: response,
-                    },
-                    created_at: new Date().toISOString(),
-                    timestamp: Date.now(),
-                    status: 'completed'
-                };
-
-                if (activeChatId) {
-                    addMessageToChat(activeChatId, assistantMessageObj);
+        const connected = await ensureConnected();
+        if (connected) {
+            try {
+                const result = await sendMessage(message, callback);
+                console.log("Message sent to WebSocket, result:", result);
+                if (!result) { // Check if sendMessage indicates failure
+                    notifications.show({
+                        title: 'Message Error',
+                        message: 'Failed to send message.',
+                        color: 'red',
+                    });
                 }
-            });
-
-            console.log("Message sent to WebSocket, result:", result);
-
-            if (!result) {
+            } catch (err: any) {
+                console.error('Failed to send message:', err);
                 notifications.show({
                     title: 'Message Error',
-                    message: 'Failed to send message. Please try again.',
+                    message: err.message || 'Failed to send message.',
                     color: 'red',
                 });
+                // Optionally re-throw or handle differently
             }
-        } catch (error) {
-            console.error('Failed to send message:', error);
+        } else {
+            console.warn("Home: Cannot send message, connection not established.");
             notifications.show({
-                title: 'Message Error',
-                message: 'Failed to send message. Please try again.',
-                color: 'red',
+                title: 'Not Connected',
+                message: 'Please wait for the connection to establish.',
+                color: 'orange',
             });
         }
-    }, [connectionState, handleConnect, sendMessage, activeChatId, createNewChat, addMessageToChat]);
+    }, [ensureConnected, sendMessage]);
 
-    const handleSelectChat = useCallback(async (chatId: string) => {
-        setActiveChatId(chatId);
-    }, []);
-
+    // Handler for creating a new chat session
     const handleNewChat = useCallback(async () => {
-        setActiveChatId(null);
-    }, []);
+        console.log("Home: Starting new chat session");
+        // 1. End the current conversation (if active)
+        if (connectionState === ConnectionState.CONNECTED) {
+            await handleDisconnect();
+        }
+    }, [connectionState, handleDisconnect]);
 
+    // Handler for selecting an existing chat (Placeholder - requires logic to load chat history)
+    const handleSelectChat = useCallback((chatId: string) => {
+        console.log("Home: Selecting chat:", chatId);
+        // TODO:
+        // 1. End current connection if active and different chat.
+        // 2. Fetch messages for `chatId` from Firebase/storage.
+        // 3. Update the `messages` state managed by the hook (or parent).
+        // 4. Potentially start a new connection associated with this `conversationId`.
+        notifications.show({ message: `Loading chat ${chatId}... (Not Implemented)`, color: 'blue' });
+        // Example: If switching, clear current state and connect
+        // if (chatId !== conversationId) {
+        //    handleNewChat().then(() => {
+        //       // setMessages(fetchedMessages); // Update local message state
+        //       // startConversation({ associatedConversationId: chatId }); // Reconnect if needed
+        //    });
+        // }
+    }, [conversationId, handleNewChat]); // Add dependencies as needed
+
+
+    // Clean up connection on unmount
     useEffect(() => {
         return () => {
-            console.log("Home: Cleaning up WebSocket connection");
+            console.log("Home: Cleaning up WebSocket connection on unmount");
             endConversation();
         };
     }, [endConversation]);
 
+    // --- Audio Level Visualization (Kept logic, but rendering removed from this component) ---
     useEffect(() => {
-        console.log("Connection state changed:", connectionState);
-    }, [connectionState]);
-
-    useEffect(() => {
+        let animationFrame: number | null = null;
         if (connectionState === ConnectionState.CONNECTED) {
-            let animationFrame: number | null = null;
-
             const updateAudioLevels = () => {
-                if (connectionState === ConnectionState.CONNECTED) {
-                    const inputLevel = getInputAudioLevel();
-                    const outputLevel = getOutputAudioLevel();
-
-                    if (isRecording || isSpeaking) {
-                        console.log(`Audio levels - Input: ${inputLevel.toFixed(2)}, Output: ${outputLevel.toFixed(2)}`);
-                    }
-
-                    animationFrame = requestAnimationFrame(updateAudioLevels);
-                }
+                const inputLevel = getInputAudioLevel();
+                const outputLevel = getOutputAudioLevel();
+                // console.log(`Input: ${inputLevel.toFixed(2)}, Output: ${outputLevel.toFixed(2)}`); // Debugging
+                // Update canvas refs if they were being used for visualization elsewhere
+                animationFrame = requestAnimationFrame(updateAudioLevels);
             };
-
             animationFrame = requestAnimationFrame(updateAudioLevels);
-
-            return () => {
-                if (animationFrame) {
-                    cancelAnimationFrame(animationFrame);
-                }
-            };
         }
-    }, [connectionState, getInputAudioLevel, getOutputAudioLevel, isRecording, isSpeaking]);
+        return () => {
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+        };
+    }, [connectionState, getInputAudioLevel, getOutputAudioLevel]);
 
-    const renderWelcomeMessage = () => {
-        if (profileLoading) {
-            return (
-                <GlassUI p="lg" radius="lg" animate withHover style={{ textAlign: 'center' }}>
-                    <EnhancedThinkingAnimation text="Loading your profile..." variant="rings" />
-                </GlassUI>
-            );
-        }
-
-        if (!profile) {
-            return (
-                <GlassUI p="lg" radius="lg" animate withHover style={{ textAlign: 'center' }}>
-                    <div>Welcome to your language learning journey!</div>
-                </GlassUI>
-            );
-        }
-
-        const activeLanguage = profile.targetLanguages.length > 0
-            ? profile.targetLanguages[0]
-            : null;
-
-        return (
-            <GlassUI p="lg" radius="lg" animate withHover style={{ textAlign: 'center', maxWidth: 800, margin: '0 auto' }}>
-                <h2>Welcome back, {profile.firstName || profile.displayName}!</h2>
-                {activeLanguage && (
-                    <div>
-                        <p>Ready to continue your {activeLanguage.language} learning?</p>
-                        <p>You're currently at {activeLanguage.level} level with {activeLanguage.progress}% progress.</p>
-                        {activeLanguage.streak > 0 && (
-                            <p>🔥 You're on a {activeLanguage.streak} day streak. Keep it up!</p>
-                        )}
-                    </div>
-                )}
-            </GlassUI>
-        );
-    };
 
     return (
         <AppShell
             header={{ height: 60 }}
-            padding={0}
+            padding={0} // No padding for AppShell itself
             style={{
-                position: 'relative',
+                position: 'relative', // Changed from 'fixed'
                 height: '100vh',
+                width: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                width: '100%'
+                overflow: 'hidden', // Prevent body scroll
+                backgroundColor: 'var(--mantine-color-dark-9)' // Ensure bg color
             }}
         >
+            {/* Loading overlay while profile is loading */}
+            <LoadingOverlay
+                visible={profileLoading && !user} // Show only initially while profile and user context load
+                zIndex={1000}
+                overlayProps={{ radius: "sm", blur: 2 }}
+            />
+
             <Header
                 selectedMode={selectedMode}
                 onModeChange={setSelectedMode}
-                onResetAPIKey={() => {}}
-                showSettings={true}
+                onResetAPIKey={() => {}} // Implement if needed
+                showSettings={true} // Or control based on state/props
             />
 
             <AppShell.Main style={{
-                flex: 1,
-                display: 'flex',
+                flex: 1, // Takes remaining height
+                height: 'calc(100vh - 60px)', // Explicit height calculation
+                overflow: 'hidden', // Prevent double scrollbars
+                display: 'flex', // Needed for flex child
                 flexDirection: 'column',
-                height: 'calc(100vh - 60px)',
-                width: '100%'
+                position: 'relative', // Ensure context for absolutely positioned children if any
             }}>
                 <SignedIn>
-                    {messages.length === 0 && connectionState !== ConnectionState.CONNECTED && (
-                        <div style={{ padding: '2rem' }}>
-                            {renderWelcomeMessage()}
-                        </div>
-                    )}
-
+                    {/* EnhancedChatSection now handles its own empty state */}
                     <EnhancedChatSection
                         connectionState={connectionState}
                         isThinking={isThinking}
@@ -328,19 +256,21 @@ export const Home: React.FC = () => {
                         connectionError={error}
                         onStartRecording={handleStartRecording}
                         onStopRecording={handleStopRecording}
-                        onDisconnect={handleDisconnect}
-                        onConnect={handleConnect}
+                        onDisconnect={handleDisconnect} // Pass disconnect if needed (e.g., manual disconnect button)
+                        onConnect={handleConnect} // Pass connect if needed (e.g., manual connect button)
                         onSendMessage={handleSendMessage}
-                        onNewChat={handleNewChat}
-                        onSelectChat={handleSelectChat}
-                        clientCanvasRef={clientCanvasRef}
-                        serverCanvasRef={serverCanvasRef}
+                        onNewChat={handleNewChat} // Pass new chat handler
+                        onSelectChat={handleSelectChat} // Pass select chat handler
+                        onCloseChat={handleSelectChat} // Or specific archive/delete handler
+                        // Pass refs only if needed by ChatSection or sub-components for visualization
+                        // clientCanvasRef={clientCanvasRef}
+                        // serverCanvasRef={serverCanvasRef}
                         messages={messages}
-                        conversationId={activeChatId}
-                        chats={allChats}
+                        conversationId={conversationId} // Pass current conversation ID
                     />
                 </SignedIn>
                 <SignedOut>
+                    {/* AuthOverlay should cover the main area */}
                     <AuthOverlay />
                 </SignedOut>
             </AppShell.Main>

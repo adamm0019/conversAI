@@ -80,7 +80,7 @@ export const useFirebaseChatService = () => {
                         updated_at: serverTimestamp(),
                         unread: 0,
                         isArchived: false,
-                        messages: [],
+                        messages: [],  // Will add messages in batch
                         userId: userId,
                         lastMessage: ''
                     };

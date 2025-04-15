@@ -1,70 +1,75 @@
 import React from 'react';
 import { Center, Text, Stack } from '@mantine/core';
 import { motion } from 'framer-motion';
-import { IconMessageCircle } from '@tabler/icons-react';
-import { styles } from '../ChatSection/styles.ts';
+import { IconSparkles } from '@tabler/icons-react'; // Changed icon
+import { styles } from '../ChatSection/styles.ts'; // Assuming styles are in the same folder or adjust path
 
 interface EmptyStateProps {
     userName?: string;
 }
 
-const pulse = {
+const iconVariants = {
+    initial: { scale: 0.8, opacity: 0 },
     animate: {
-        scale: [1, 1.06, 1],
-        opacity: [0.7, 1, 0.7],
+        scale: 1,
+        opacity: 1,
+        transition: {
+            type: 'spring',
+            stiffness: 260,
+            damping: 20,
+            delay: 0.2,
+        },
     },
-    transition: {
-        duration: 2,
-        ease: 'easeInOut',
-        repeat: Infinity,
-    },
+    hover: {
+        scale: 1.1,
+        rotate: 10,
+        transition: { duration: 0.3 }
+    }
+};
+
+const textVariants = {
+    initial: { y: 20, opacity: 0 },
+    animate: {
+        y: 0,
+        opacity: 1,
+        transition: { duration: 0.6, ease: 'easeOut', delay: 0.4 }
+    }
+};
+
+const getTimeOfDay = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
 };
 
 const EmptyState: React.FC<EmptyStateProps> = ({ userName }) => {
-    const greeting = `🌅 Good ${getTimeOfDay()}, ${userName || 'friend'}`;
+    const greeting = `Good ${getTimeOfDay()}, ${userName || 'friend'}!`;
 
     return (
         <Center style={styles.emptyStateContainer}>
-            <Stack align="center" m="md">
+            <Stack align="center" gap="lg">
                 <motion.div
-                    style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(56, 163, 165, 0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 0 12px rgba(56, 163, 165, 0.3)',
-                        backdropFilter: 'blur(8px)',
-                    }}
-                    {...pulse}
+                    style={styles.emptyStateIconWrapper}
+                    variants={iconVariants}
+                    initial="initial"
+                    animate="animate"
+                    whileHover="hover"
                 >
-                    <IconMessageCircle size={32} stroke={1.5} color="#38a3a5" />
+                    <IconSparkles size={36} stroke={1.5} color="var(--mantine-color-teal-4)" />
                 </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                >
-                    <Text size="xl" fw={600} c="gray.3">
+                <motion.div variants={textVariants} initial="initial" animate="animate">
+                    <Text style={styles.emptyStateGreeting}>
                         {greeting}
                     </Text>
-                    <Text size="sm" c="dimmed" ta="center" maw={500}>
-                        Ready to practice your skills or ask a question.
+                    <Text style={styles.emptyStatePrompt}>
+                        How can I assist you with your language learning today?
                     </Text>
                 </motion.div>
             </Stack>
         </Center>
     );
 };
-
-function getTimeOfDay() {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'morning';
-    if (hour < 18) return 'afternoon';
-    return 'evening';
-}
 
 export default EmptyState;
