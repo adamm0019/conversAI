@@ -7,14 +7,14 @@ import {
   IconSettings, IconVolume, IconUserCog, IconPalette, IconLanguage,
   IconInfoCircle, IconAlertTriangle, IconTrash, IconMicrophone, IconHeadphones, IconPlayerPlay
 } from '@tabler/icons-react';
-import { useProfile } from '../../contexts/ProfileContext'; // Verify path
-import { DynamicVariablesManager } from './DynamicVariablesManager'; // Verify path (Keep this if it handles user profile vars)
-import { notifications } from '@mantine/notifications'; // For feedback
+import { useProfile } from '../../contexts/ProfileContext';
+import { DynamicVariablesManager } from './DynamicVariablesManager';
+import { notifications } from '@mantine/notifications';
 
 interface SettingsModalProps {
   opened: boolean;
   onClose: () => void;
-  // Removed onResetAPIKey as API settings are removed
+  // Removed onResetAPIKey prop as it's no longer needed
 }
 
 // Example data - replace with actual data fetching/storage logic
@@ -52,8 +52,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
   const [showTranscription, setShowTranscription] = useState(profile?.settings?.showTranscription ?? true);
   const [speechRate, setSpeechRate] = useState(profile?.settings?.speechRate || 1.0);
   const [assistantPersona, setAssistantPersona] = useState(profile?.settings?.assistantPersona || 'friendly');
-  const [inputDevice, setInputDevice] = useState<string | null>(profile?.settings?.inputDevice || 'default'); // Placeholder
-  const [outputDevice, setOutputDevice] = useState<string | null>(profile?.settings?.outputDevice || 'default'); // Placeholder
+  const [inputDevice, setInputDevice] = useState<string | null>(profile?.settings?.inputDevice || 'default');
+  const [outputDevice, setOutputDevice] = useState<string | null>(profile?.settings?.outputDevice || 'default');
   const [availableInputDevices, setAvailableInputDevices] = useState<{ value: string, label: string }[]>([]);
   const [availableOutputDevices, setAvailableOutputDevices] = useState<{ value: string, label: string }[]>([]);
 
@@ -103,7 +103,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
     if (opened && activeTab === 'speech') { // Fetch only when modal is open and tab is active
       fetchDevices();
     }
-  }, [opened, activeTab]); // Re-run if modal opens or tab changes
+  }, [opened, activeTab]);
 
   // --- Handlers ---
   const handleSettingChange = (setting: string, value: any) => {
@@ -169,23 +169,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
     }
   };
 
-  const tabStyles = {
-    tab: {
-      paddingTop: theme.spacing.sm,
-      paddingBottom: theme.spacing.sm,
-      '&[data-active]': {
-        // backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[1],
-      },
-      '&:hover': {
-        backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[0],
-      }
-    },
-    list: {
-      borderBottom: `1px solid ${colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
-      marginBottom: theme.spacing.md,
-    }
-  };
-
   return (
       <>
         <Modal
@@ -197,14 +180,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
                 <Title order={4}>Settings</Title>
               </Group>
             }
-            size="lg" // Consider 'xl' for more space
-            centered // Center vertically
-            scrollAreaComponent={ScrollArea.Autosize} // Use internal scroll area
+            size="lg"
+            centered
+            scrollAreaComponent={ScrollArea.Autosize}
             transitionProps={{ transition: 'pop', duration: 200 }}
-            styles={modalStyles} // Apply modern styles
-            // overlayProps={{ backgroundOpacity: 0.6, blur: 4 }} // Alternative way for overlay
+            styles={modalStyles}
         >
-          <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md" styles={tabStyles}>
+          <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md">
             <Tabs.List grow>
               <Tabs.Tab value="general" leftSection={<IconPalette size={16} stroke={1.5} />}>Appearance</Tabs.Tab>
               <Tabs.Tab value="speech" leftSection={<IconVolume size={16} stroke={1.5} />}>Speech & Audio</Tabs.Tab>
@@ -212,9 +194,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
               <Tabs.Tab value="language" leftSection={<IconLanguage size={16} stroke={1.5} />}>Language</Tabs.Tab>
             </Tabs.List>
 
-            {/* Use Mantine's ScrollArea within panels if content might overflow fixed height */}
-            {/* <ScrollArea h={450} mt="md"> */}
-            <Box mt="xl"> {/* Add margin top for spacing after tabs */}
+            <Box mt="xl">
               <Tabs.Panel value="general" pt="xs">
                 <Stack gap="lg">
                   <SettingGroup title="Theme">
@@ -273,7 +253,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
                         onChange={(value) => handleSettingChange('inputDevice', value)}
                         leftSection={<IconMicrophone size={16} stroke={1.5}/>}
                         searchable
-                        nothingFoundMessage="No devices found" // Add message
+                        nothingFoundMessage="No devices found"
                     />
                     <Switch
                         label="Automatic sentence ending"
@@ -312,7 +292,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
                           precision={1}
                           marks={[{ value: 1.0, label: 'Normal' }]}
                           label={(value) => `${value.toFixed(1)}x`}
-                          // styles={{ markLabel: { fontSize: '10px' } }} // Example style override
                       />
                     </SettingItem>
                     <Select
@@ -322,7 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
                         value={assistantPersona}
                         onChange={(value) => handleSettingChange('assistantPersona', value || 'friendly')}
                         allowDeselect={false}
-                        leftSection={<IconPlayerPlay size={16} stroke={1.5}/>} // Example icon
+                        leftSection={<IconPlayerPlay size={16} stroke={1.5}/>}
                     />
                   </SettingGroup>
                 </Stack>
@@ -330,11 +309,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
 
               <Tabs.Panel value="personalization" pt="xs">
                 <SettingGroup title="User Information" description="This helps the AI tailor conversations to you. (Stored locally)">
-                  {/* Keep your existing DynamicVariablesManager or adapt it */}
-                  {/* Ensure it calls handleDynamicVariablesUpdate on changes */}
                   <DynamicVariablesManager onUpdate={handleDynamicVariablesUpdate} />
                 </SettingGroup>
-                {/* Add other personalization settings if needed */}
               </Tabs.Panel>
 
               <Tabs.Panel value="language" pt="xs">
@@ -349,13 +325,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
                         allowDeselect={false}
                     />
                   </SettingGroup>
-                  {/* Potentially add target language settings here if not part of profile */}
                 </Stack>
               </Tabs.Panel>
             </Box>
-            {/* </ScrollArea> */}
 
-            {/* Close Button - Placed outside ScrollArea if used */}
             <Group justify="flex-end" mt="xl" pt="md" style={{borderTop: `1px solid ${colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[2]}`}}>
               <Button variant="default" onClick={onClose}>
                 Done
@@ -405,5 +378,4 @@ const SettingItem: React.FC<{ label: string; children: React.ReactNode }> =
         </Group>
     );
 
-
-// export default SettingsModal;
+export default SettingsModal;

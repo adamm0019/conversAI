@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
     Box, Group, Text, Stack, TextInput,
     ActionIcon, Loader, Center, Tooltip
@@ -10,23 +10,21 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useUser } from '@clerk/clerk-react';
 import { notifications } from '@mantine/notifications';
 
-import { EnhancedConversationItem } from '../../types/conversation'; // Verify path
-import { ThinkingAnimation } from '../ThinkingAnimation'; // Verify path
-import MessageBubble from './MessageBubble'; // Verify path
-import { styles } from './styles'; // Verify path
-import { ChatShelf } from './ChatShelf'; // Verify path
-import { ConnectionState } from '../../types/connection'; // Verify path
-import EmptyState from "../EmptyState/EmptyState"; // Verify path
+import { EnhancedConversationItem } from '../../types/conversation';
+import { ThinkingAnimation } from '../ThinkingAnimation';
+import MessageBubble from './MessageBubble';
+import { styles } from './styles';
+import { ChatShelf } from './ChatShelf';
+import { ConnectionState } from '../../types/connection';
+import EmptyState from "../EmptyState/EmptyState";
 import VoiceActivityIndicator from './VoiceActivityIndicator';
-import {Simulate} from "react-dom/test-utils";
-import error = Simulate.error; // Verify path
 
 interface EnhancedChatSectionProps {
     connectionState: ConnectionState;
     isThinking: boolean;
     isRecording: boolean;
     isSpeaking: boolean;
-    audioLevel?: number; // Receives audio level from parent (Home.tsx)
+    audioLevel?: number;
     connectionError?: string | null;
     onStartRecording: () => Promise<void>;
     onStopRecording: () => Promise<void>;
@@ -45,7 +43,7 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
                                                                      isThinking,
                                                                      isRecording,
                                                                      isSpeaking,
-                                                                     audioLevel = 0, // Default audio level to 0 if undefined
+                                                                     audioLevel = 0,
                                                                      connectionError,
                                                                      onStartRecording,
                                                                      onStopRecording,
@@ -208,7 +206,7 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
                 {/* Optional Connection Status */}
                 <Box mb="xs" style={{ maxWidth: '840px', margin: '0 auto', textAlign: 'center', height: '16px' /* Reserve space */ }}>
                     {connectionError && <Text c="red.6" size="xs">Error: {connectionError}</Text>}
-                    {connectionState === ConnectionState.CONNECTING && !error && (
+                    {connectionState === ConnectionState.CONNECTING && !connectionError && (
                         <Group justify="center" gap={4}><Loader size="xs" type="dots" /><Text size="xs" c="dimmed">Connecting...</Text></Group>
                     )}
                 </Box>
@@ -312,7 +310,6 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
                 </Box>
             </motion.div>
         </div>
-    );
-};
+)};
 
 export default EnhancedChatSection;
