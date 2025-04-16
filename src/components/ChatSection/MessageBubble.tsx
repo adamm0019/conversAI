@@ -127,12 +127,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
             )}
           </Text>
 
-          {/* Audio Player (Simplified) */}
           {hasAudio && (
               <Box mt="xs" style={{ position: 'relative' }}>
-                {/* Hidden actual player */}
                 <audio ref={audioRef} src={item.formatted.file.url} preload="metadata" style={{ display: 'none' }} />
-                {/* Custom Controls */}
                 <Tooltip label={isPlayingAudio ? "Pause audio" : "Play audio"} position="top" withArrow>
                   <ActionIcon
                       variant="filled"

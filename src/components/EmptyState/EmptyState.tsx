@@ -56,7 +56,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ userName }) => {
                     animate="animate"
                     whileHover="hover"
                 >
-                    <IconSparkles size={36} stroke={1.5} color="var(--mantine-color-teal-4)" />
+                    <Text size={"40"}>👋</Text>
                 </motion.div>
 
                 <motion.div variants={textVariants} initial="initial" animate="animate">

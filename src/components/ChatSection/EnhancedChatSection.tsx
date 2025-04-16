@@ -1,44 +1,43 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
     Box, Group, Text, Stack, TextInput,
     ActionIcon, Loader, Center, Tooltip
 } from '@mantine/core';
 import {
-    IconMicrophone, IconPlayerStop, IconArrowUp,
-    IconVolume3, IconSend
+    IconMicrophone, IconPlayerStop, IconSend
 } from '@tabler/icons-react';
-import {AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useUser } from '@clerk/clerk-react';
 import { notifications } from '@mantine/notifications';
 
-import { EnhancedConversationItem } from '../../types/conversation';
-import { ThinkingAnimation } from '../ThinkingAnimation';
-import MessageBubble from './MessageBubble';
-import { styles } from './styles';
-import { ChatShelf } from './ChatShelf';
-import { ConnectionState } from '../../types/connection';
-import EmptyState from "../EmptyState/EmptyState.tsx";
+import { EnhancedConversationItem } from '../../types/conversation'; // Verify path
+import { ThinkingAnimation } from '../ThinkingAnimation'; // Verify path
+import MessageBubble from './MessageBubble'; // Verify path
+import { styles } from './styles'; // Verify path
+import { ChatShelf } from './ChatShelf'; // Verify path
+import { ConnectionState } from '../../types/connection'; // Verify path
+import EmptyState from "../EmptyState/EmptyState"; // Verify path
+import VoiceActivityIndicator from './VoiceActivityIndicator';
+import {Simulate} from "react-dom/test-utils";
+import error = Simulate.error; // Verify path
 
 interface EnhancedChatSectionProps {
     connectionState: ConnectionState;
     isThinking: boolean;
     isRecording: boolean;
-    isSpeaking: boolean; // Added for potential visual feedback
-    audioLevel?: number;
-    serverAudioLevel?: number;
+    isSpeaking: boolean;
+    audioLevel?: number; // Receives audio level from parent (Home.tsx)
     connectionError?: string | null;
     onStartRecording: () => Promise<void>;
     onStopRecording: () => Promise<void>;
     onDisconnect: () => Promise<void>;
     onConnect: () => Promise<void>;
     onSendMessage: (message: string, callback?: (response: string) => void) => Promise<void>;
-    onNewChat?: () => void; // Keep this if needed by ChatShelf or parent
-    clientCanvasRef?: React.RefObject<HTMLCanvasElement>; // Keep if used for visualizers elsewhere
-    serverCanvasRef?: React.RefObject<HTMLCanvasElement>; // Keep if used for visualizers elsewhere
+    onNewChat?: () => void;
     messages: EnhancedConversationItem[];
-    conversationId?: string | null; // Needed for ChatShelf active state
-    onSelectChat: (id: string) => void; // Needed for ChatShelf
-    onCloseChat: (id: string) => void; // Needed for ChatShelf
+    conversationId?: string | null;
+    onSelectChat: (id: string) => void;
+    onCloseChat: (id: string) => void;
 }
 
 const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
@@ -46,19 +45,18 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
                                                                      isThinking,
                                                                      isRecording,
                                                                      isSpeaking,
+                                                                     audioLevel = 0, // Default audio level to 0 if undefined
+                                                                     connectionError,
                                                                      onStartRecording,
                                                                      onStopRecording,
-                                                                     onConnect, // Assuming connect/disconnect logic is handled elsewhere (e.g., based on state)
+                                                                     onConnect,
                                                                      onDisconnect,
                                                                      onSendMessage,
-                                                                     connectionError,
                                                                      messages,
-                                                                     conversationId, // Pass down
-                                                                     onNewChat,       // Pass down
-                                                                     onSelectChat,    // Pass down
-                                                                     onCloseChat,     // Pass down
-                                                                     // clientCanvasRef, // Refs are not directly used here anymore unless visualizers are integrated differently
-                                                                     // serverCanvasRef,
+                                                                     conversationId,
+                                                                     onNewChat,
+                                                                     onSelectChat,
+                                                                     onCloseChat,
                                                                  }) => {
     const { user } = useUser();
     const [message, setMessage] = useState('');
@@ -66,235 +64,254 @@ const EnhancedChatSection: React.FC<EnhancedChatSectionProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Smooth scroll to bottom
+    // Effect to scroll messages into view
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const timer = setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+        return () => clearTimeout(timer);
     }, [messages]);
 
-    // Focus input on load (optional)
+    // Effect to focus input
     useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
+        const focusTimeout = setTimeout(() => {
+            inputRef.current?.focus();
+        }, 100);
+        return () => clearTimeout(focusTimeout);
+    }, [conversationId]); // Refocus if the conversationId changes
 
+    // Handler to send text message
     const handleSend = useCallback(async () => {
-        if (!message.trim() || isSending) return;
+        if (!message.trim() || isSending || isRecording) return;
         const textToSend = message.trim();
-        setMessage(''); // Clear input immediately for better UX
+        setMessage('');
         setIsSending(true);
         try {
             await onSendMessage(textToSend);
         } catch (err: any) {
             console.error("Send Error:", err);
-            notifications.show({
-                title: 'Message Error',
-                message: `Failed to send message: ${err.message || 'Unknown error'}`,
-                color: 'red',
-                autoClose: 4000,
-            });
-            setMessage(textToSend); // Restore message on error
+            notifications.show({ title: 'Message Error', message: `Failed to send message: ${err.message || 'Unknown error'}`, color: 'red', autoClose: 4000 });
+            setMessage(textToSend); // Restore on error
         } finally {
             setIsSending(false);
-            // Refocus input after sending
             setTimeout(() => inputRef.current?.focus(), 0);
         }
-    }, [message, isSending, onSendMessage]);
+    }, [message, isSending, isRecording, onSendMessage]);
 
+    // Handler for Enter key press
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey && !isRecording) {
             e.preventDefault();
             handleSend();
         }
-    }, [handleSend]);
+    }, [handleSend, isRecording]);
 
+    // Handler for clicking the mic icon or voice indicator
     const handleMicClick = useCallback(() => {
         if (isRecording) {
             onStopRecording();
         } else {
-            onStartRecording();
+            if (!isSending) { // Prevent starting recording while sending text
+                setMessage(''); // Clear text input
+                onStartRecording();
+                inputRef.current?.focus(); // Keep focus
+            }
         }
-    }, [isRecording, onStartRecording, onStopRecording]);
+    }, [isRecording, isSending, onStartRecording, onStopRecording]);
 
-    // Determine Mic Icon and Tooltip
-    const MicIcon = isRecording ? IconPlayerStop : IconMicrophone;
+    // Tooltip text based on recording state
     const micTooltip = isRecording ? 'Stop recording' : 'Start recording';
 
-    const shouldShowEmptyState = messages.length === 0 && !isThinking; // Show empty only if no messages and not initially thinking
+    // Determine if the empty state should be shown
+    const shouldShowEmptyState = messages.length === 0 && !isThinking && connectionState !== ConnectionState.CONNECTING;
 
     // --- Framer Motion Variants ---
     const messageVariants = {
         hidden: { opacity: 0, y: 20 },
-        visible: (i: number) => ({ // Custom prop for stagger index
-            opacity: 1,
-            y: 0,
-            transition: {
-                delay: i * 0.08, // Stagger appearance
-                duration: 0.4,
-                ease: "easeOut"
-            }
-        }),
+        visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.4, ease: "easeOut" } }),
         exit: { opacity: 0, transition: { duration: 0.2 } }
     };
-
     const inputContainerVariants = {
-        initial: { y: 50, opacity: 0 },
-        animate: { y: 0, opacity: 1, transition: { duration: 0.5, ease: 'easeOut' } },
+        initial: { y: 30, opacity: 0 },
+        animate: { y: 0, opacity: 1, transition: { duration: 0.4, ease: 'easeOut' } },
     };
-
     const sendButtonVariants = {
         tap: { scale: 0.9 },
         hover: { scale: 1.1 }
-    }
-
-    const micButtonVariants = {
-        tap: { scale: 0.9 },
-        hover: { scale: 1.1 },
-        recording: { // Custom state for recording
-            scale: [1, 1.15, 1], // Pulse effect
-            transition: { duration: 1, repeat: Infinity, ease: "easeInOut" }
-        }
-    }
+    };
+    // Variants for the mic icon / activity indicator container (used in AnimatePresence)
+    const micContainerVariants = {
+        initial: { scale: 0.8, opacity: 0 },
+        animate: { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 15, duration: 0.2 } },
+        exit: { scale: 0.5, opacity: 0, transition: { duration: 0.15 } },
+        hover: { scale: 1.1 }, // For hover effect on the container
+        tap: { scale: 0.9 }   // For tap effect on the container
+    };
 
     return (
-        <Box style={styles.container}>
-            {/* Chat Shelf integration */}
+        // Main container for the chat section including shelf and input
+        <div style={styles.container}>
             <ChatShelf
                 activeChat={conversationId || ''}
                 onSelectChat={onSelectChat}
-                onCloseChat={onCloseChat} // Pass archive/delete handler if needed
+                onCloseChat={onCloseChat} // Or specific handler
                 onNewChat={onNewChat || (() => { console.warn("onNewChat not provided"); })}
             />
 
-            {/* Main Chat Area */}
-            <Box style={styles.chatArea} key={conversationId}> {/* Key forces remount on chat change if needed */}
-                <AnimatePresence mode="popLayout"> {/* Animate messages in/out */}
+            {/* Scrollable chat message area */}
+            <Box style={styles.chatArea} key={conversationId}>
+                <AnimatePresence mode="popLayout">
                     <Box style={styles.messageContainer}>
-                        {shouldShowEmptyState ? (
-                            <EmptyState userName={user?.firstName} />
-                        ) : (
-                            messages.map((item, idx) => (
-                                <motion.div
-                                    key={item.timestamp?.toString() + idx} // More robust key
-                                    custom={idx} // Pass index for stagger
-                                    variants={messageVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    exit="exit"
-                                    layout // Enable smooth layout changes
-                                    style={item.role === 'user' ? styles.messageBubbleWrapperUser : styles.messageBubbleWrapper}
-                                >
-                                    <MessageBubble item={item} />
-                                    {/* Timestamp can be inside MessageBubble or here */}
-                                    {/* <Text size="xs" c="dimmed" mt={2} style={{alignSelf: item.role === 'user' ? 'flex-end' : 'flex-start', opacity: 0.6 }}>
-                                        {formatTimestamp(item.timestamp)} // Add a formatTimestamp function
-                                     </Text> */}
-                                </motion.div>
-                            ))
-                        )}
+                        {/* Render Empty State or Messages */}
+                        {shouldShowEmptyState && <EmptyState userName={user?.firstName} />}
 
-                        {/* Thinking Indicator */}
+                        {!shouldShowEmptyState && messages.map((item, idx) => (
+                            <motion.div
+                                key={item.timestamp?.toString() + idx + item.role} // Robust key
+                                custom={idx}
+                                variants={messageVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                                layout="position"
+                                style={item.role === 'user' ? styles.messageBubbleWrapperUser : styles.messageBubbleWrapper}
+                            >
+                                <MessageBubble item={item} />
+                            </motion.div>
+                        ))}
+
+                        {/* Render Thinking Indicator */}
                         {isThinking && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 style={{ ...styles.messageBubbleWrapper, ...styles.thinkingAnimationContainer }}
-                                layout
+                                layout="position"
                             >
                                 <ThinkingAnimation />
                             </motion.div>
                         )}
 
-                        {/* Element to scroll to */}
+                        {/* Scroll anchor */}
                         <div ref={messagesEndRef} style={{ height: '1px' }} />
                     </Box>
                 </AnimatePresence>
             </Box>
 
-            {/* Fixed Input Bar Area */}
+            {/* Input area at the bottom */}
             <motion.div
                 style={styles.inputContainer}
                 variants={inputContainerVariants}
                 initial="initial"
                 animate="animate"
             >
-                <Box style={styles.inputInner}>
-                    {/* Optional: Connection Status/Error Display */}
-                    {connectionError && (
-                        <Text c="red.6" size="xs" ta="center" mb="xs">Error: {connectionError}</Text>
+                {/* Optional Connection Status */}
+                <Box mb="xs" style={{ maxWidth: '840px', margin: '0 auto', textAlign: 'center', height: '16px' /* Reserve space */ }}>
+                    {connectionError && <Text c="red.6" size="xs">Error: {connectionError}</Text>}
+                    {connectionState === ConnectionState.CONNECTING && !error && (
+                        <Group justify="center" gap={4}><Loader size="xs" type="dots" /><Text size="xs" c="dimmed">Connecting...</Text></Group>
                     )}
-                    {connectionState === 'connecting' && (
-                        <Group justify="center" mb="xs"><Loader size="xs" /><Text size="xs" c="dimmed">Connecting...</Text></Group>
-                    )}
+                </Box>
 
-                    <Group wrap="nowrap" align="flex-end">
-                        <TextInput
-                            placeholder="Type or speak your message..."
-                            value={message}
-                            onChange={(e) => setMessage(e.currentTarget.value)}
-                            onKeyDown={handleKeyDown}
-                            ref={inputRef}
-                            radius="xl"
-                            size="md" // Slightly larger input
-                            multiline // Allow multiline input easily
-                            minRows={1}
-                            maxRows={5}
-                            autosize // Automatically adjusts height
-                            style={{ flex: 1 }}
-                            styles={{ // Apply styles directly to Mantine components
-                                input: styles.textInputInput,
-                                // root: styles.textInputRoot // If you added root styles
-                            }}
-                            rightSectionWidth={85} // Adjust width for potentially larger icons or spacing
-                            disabled={isSending || isRecording} // Disable text input while sending/recording
-                        />
-                        {/* Action Icons */}
-                        <Group gap="xs" wrap="nowrap" style={styles.inputActions}>
-                            <Tooltip label={micTooltip} position="top" withArrow>
+                {/* Inner container for text input and icons */}
+                <Box style={styles.inputInner}>
+                    <TextInput
+                        placeholder={isRecording ? "Recording..." : "Type or speak your message..."}
+                        value={message}
+                        onChange={(e) => setMessage(e.currentTarget.value)}
+                        onKeyDown={handleKeyDown}
+                        ref={inputRef}
+                        size="md"
+                        style={{ flex: 1, alignSelf: 'stretch' }}
+                        styles={{ input: styles.textInputInput, wrapper: { padding: 0 } }}
+                        disabled={isSending || connectionState === ConnectionState.CONNECTING}
+                        readOnly={isRecording} // Prevent typing while recording
+                        variant="unstyled"
+                    />
+
+                    {/* Action Icons Group */}
+                    <Group gap="xs" wrap="nowrap" style={styles.inputActions}>
+                        {/* Animated switch between Mic Icon and Voice Indicator */}
+                        <AnimatePresence mode="wait">
+                            {isRecording ? (
+                                // Show Voice Activity Indicator when recording
                                 <motion.div
-                                    variants={micButtonVariants}
-                                    whileHover="hover"
-                                    whileTap="tap"
-                                    animate={isRecording ? "recording" : ""}
+                                    key="voice-indicator" // Unique key for AnimatePresence
+                                    variants={micContainerVariants}
+                                    initial="initial"
+                                    animate="animate"
+                                    exit="exit"
                                 >
-                                    <ActionIcon
-                                        variant={isRecording ? "filled" : "subtle"}
-                                        color={isRecording ? "red" : "blue"}
-                                        size="xl" // Larger click target
-                                        radius="xl"
-                                        onClick={handleMicClick}
-                                        disabled={isSending} // Disable mic while sending text
-                                        loading={false} // Handle loading state if needed for mic init
-                                        aria-label={micTooltip}
-                                    >
-                                        <MicIcon size={22} />
-                                    </ActionIcon>
+                                    <VoiceActivityIndicator
+                                        audioLevel={audioLevel} // Pass current audio level
+                                        onClick={handleMicClick} // Click to stop recording
+                                        tooltipLabel={micTooltip}
+                                        color="red" // Indicate recording state
+                                        size={38} // Match icon size visually
+                                    />
                                 </motion.div>
-                            </Tooltip>
-                            <Tooltip label={isSending ? "Sending..." : "Send message"} position="top" withArrow>
+                            ) : (
+                                // Show Microphone Icon when not recording
                                 <motion.div
+                                    key="mic-icon" // Unique key for AnimatePresence
+                                    variants={micContainerVariants}
+                                    initial="initial"
+                                    animate="animate"
+                                    exit="exit"
+                                    whileHover={!isSending && connectionState === ConnectionState.CONNECTED ? "hover" : ""} // Allow hover only if connected and not sending
+                                    whileTap={!isSending && connectionState === ConnectionState.CONNECTED ? "tap" : ""}
+                                >
+                                    <Tooltip label={micTooltip} position="top" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color={message.trim() ? 'blue' : 'gray'} // Reflect send button state
+                                            size="lg"
+                                            radius="xl"
+                                            onClick={handleMicClick} // Click to start recording
+                                            disabled={isSending || connectionState !== ConnectionState.CONNECTED} // Disable if sending or not connected
+                                            aria-label={micTooltip}
+                                        >
+                                            <IconMicrophone size={20} stroke={1.5}/>
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Animated Send Button */}
+                        <AnimatePresence>
+                            {!isRecording && message.trim() && ( // Show only if not recording and message exists
+                                <motion.div
+                                    key="send-button"
+                                    initial={{ scale: 0.5, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.5, opacity: 0 }}
+                                    transition={{ duration: 0.15 }}
                                     variants={sendButtonVariants}
-                                    whileHover={!isSending && message.trim() ? "hover" : ""} // Only hover effect if enabled
-                                    whileTap={!isSending && message.trim() ? "tap" : ""}   // Only tap effect if enabled
+                                    whileHover={!isSending ? "hover" : ""} // Allow hover only if not sending
+                                    whileTap={!isSending ? "tap" : ""}
                                 >
-                                    <ActionIcon
-                                        variant="filled"
-                                        color="blue"
-                                        size="xl" // Larger click target
-                                        radius="xl"
-                                        onClick={handleSend}
-                                        disabled={!message.trim() || isSending || isRecording} // Disable send if no text, sending, or recording
-                                        loading={isSending}
-                                        aria-label="Send message"
-                                    >
-                                        {/* Don't show loader inside, use `loading` prop */}
-                                        <IconSend size={20} stroke={1.5} />
-                                    </ActionIcon>
+                                    <Tooltip label={isSending ? "Sending..." : "Send message"} position="top" withArrow>
+                                        <ActionIcon
+                                            variant="filled"
+                                            color="blue"
+                                            size="lg"
+                                            radius="xl"
+                                            onClick={handleSend}
+                                            disabled={isSending} // Disable only while actively sending
+                                            loading={isSending}
+                                            aria-label="Send message"
+                                        >
+                                            <IconSend size={20} stroke={1.5} />
+                                        </ActionIcon>
+                                    </Tooltip>
                                 </motion.div>
-                            </Tooltip>
-                        </Group>
+                            )}
+                        </AnimatePresence>
                     </Group>
                 </Box>
             </motion.div>
-        </Box>
+        </div>
     );
 };
 

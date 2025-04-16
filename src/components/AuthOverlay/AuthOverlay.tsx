@@ -8,8 +8,8 @@ It also contains styling using the old Mantine v3 createStyles API, found here: 
 
 import { Box, Paper, Text, Button, Stack } from '@mantine/core';
 import { createStyles } from '@mantine/styles'
-import darkModeLogo from '../../../src/assets/conversai-logo.png';
-import lightModeLogo from '../../../src/assets/conversai-logo.png.svg';
+import darkModeLogo from '../../../src/assets/conversai-logo-dark.png';
+import lightModeLogo from '../../../src/assets/conversai-logo.png';
 import { SignInButton } from "@clerk/clerk-react";
 import { useMantineColorScheme } from '@mantine/core';
 

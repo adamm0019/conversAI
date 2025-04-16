@@ -1,34 +1,24 @@
-// src/pages/Home.tsx
-import { AppShell, LoadingOverlay } from '@mantine/core'; // Added LoadingOverlay
+import { AppShell, LoadingOverlay } from '@mantine/core';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
-import { useWebSocketConversation } from '../hooks/useWebSocketConversation';
-import EnhancedChatSection from '../components/ChatSection/EnhancedChatSection';
-import { Header } from '../components/Header/Header';
-import { AuthOverlay } from '../components/AuthOverlay/AuthOverlay';
-import { ConnectionState } from '../types/connection';
+import { useWebSocketConversation } from '../hooks/useWebSocketConversation'; // Verify path
+import EnhancedChatSection from '../components/ChatSection/EnhancedChatSection'; // Verify path
+import { Header } from '../components/Header/Header'; // Verify path
+import { AuthOverlay } from '../components/AuthOverlay/AuthOverlay'; // Verify path
+import { ConnectionState } from '../types/connection'; // Verify path
 import { notifications } from '@mantine/notifications';
-import { useProfile } from '../contexts/ProfileContext';
-import { sanitizeDynamicVariables } from '../types/dynamicVariables';
-// Removed GlassUI and EnhancedThinkingAnimation imports if only used for the removed welcome message
+import { useProfile } from '../contexts/ProfileContext'; // Verify path
+import { sanitizeDynamicVariables } from '../types/dynamicVariables'; // Verify path
 
 export const Home: React.FC = () => {
-    const [selectedMode, setSelectedMode] = useState('tutor'); // Or load from profile/settings
+    const [selectedMode, setSelectedMode] = useState('tutor'); // Default mode
+    const { user } = useUser();
+    const { profile, isLoading: profileLoading, getDynamicVariables } = useProfile();
 
-    // Refs for potential audio visualizations (kept but not used in current render)
-    const clientCanvasRef = useRef<HTMLCanvasElement>(null);
-    const serverCanvasRef = useRef<HTMLCanvasElement>(null);
+    // State to hold the current client audio level for visualization
+    const [clientAudioLevel, setClientAudioLevel] = useState(0);
 
-    const { user } = useUser(); // Get Clerk user info if needed
-
-    // Get user profile data and dynamic variables
-    const {
-        profile,
-        isLoading: profileLoading,
-        getDynamicVariables
-    } = useProfile();
-
-    // WebSocket Conversation Hook
+    // WebSocket Conversation Hook Setup
     const {
         connectionState,
         isThinking,
@@ -43,19 +33,19 @@ export const Home: React.FC = () => {
         startRecording,
         stopRecording,
         getInputAudioLevel,
-        getOutputAudioLevel,
+        getOutputAudioLevel, // Keep if used elsewhere
         updateDynamicVariables,
     } = useWebSocketConversation({
-        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'struNpxnJkL8IlMMev4O',
-        dynamicVariables: profile ? sanitizeDynamicVariables(getDynamicVariables()) : {}, // Pass empty if no profile yet
+        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'struNpxnJkL8IlMMev4O', // Use environment variable
+        dynamicVariables: profile ? sanitizeDynamicVariables(getDynamicVariables()) : {},
         autoReconnect: true,
         onMessageReceived: (message) => {
-            console.log("Message received in hook callback:", message);
+            console.log("Message received:", message);
         },
-        // Add other necessary options if your hook supports them
+        // Add other hook options as needed
     });
 
-    // Update dynamic variables when profile loads or changes while connected
+    // Effect to update dynamic variables when profile changes
     useEffect(() => {
         if (profile && !profileLoading && connectionState === ConnectionState.CONNECTED) {
             const variables = sanitizeDynamicVariables(getDynamicVariables());
@@ -64,56 +54,42 @@ export const Home: React.FC = () => {
         }
     }, [profile, profileLoading, connectionState, getDynamicVariables, updateDynamicVariables]);
 
-    // --- Connection & Action Handlers ---
-
+    // --- Connection Management ---
     const ensureConnected = useCallback(async (): Promise<boolean> => {
         if (connectionState !== ConnectionState.CONNECTED) {
             console.log("Home: Not connected, attempting to connect...");
             try {
                 await startConversation();
-                // It might take a moment for the state to update,
-                // consider awaiting a state change or adding a small delay if needed,
-                // or rely on the hook to manage subsequent actions after connection.
-                return true; // Indicate connection was initiated
+                // Connection attempt initiated. State will update via the hook.
+                return true;
             } catch (err: any) {
                 console.error("Connection error:", err);
-                notifications.show({
-                    title: 'Connection Error',
-                    message: err.message || 'Failed to connect to voice service',
-                    color: 'red',
-                });
-                return false; // Indicate connection failed
+                notifications.show({ title: 'Connection Error', message: err.message || 'Failed to connect to voice service.', color: 'red' });
+                return false;
             }
         }
-        return connectionState === ConnectionState.CONNECTED; // Return true if already connected
+        // Return true if already connected or connection is in progress
+        return connectionState === ConnectionState.CONNECTED;
     }, [connectionState, startConversation]);
 
-    const handleConnect = useCallback(async (): Promise<void> => {
-        await ensureConnected();
-    }, [ensureConnected]);
-
-    const handleDisconnect = useCallback(async (): Promise<void> => {
-        console.log("Home: Disconnecting WebSocket");
-        endConversation();
-    }, [endConversation]);
+    // --- Action Handlers ---
+    const handleConnect = useCallback(async (): Promise<void> => { await ensureConnected(); }, [ensureConnected]);
+    const handleDisconnect = useCallback(async (): Promise<void> => { endConversation(); }, [endConversation]);
 
     const handleStartRecording = useCallback(async (): Promise<void> => {
-        console.log("Home: Starting recording");
+        console.log("Home: Attempting to start recording");
         const connected = await ensureConnected();
         if (connected) {
             try {
                 await startRecording();
+                console.log("Home: Recording started successfully");
             } catch (err: any) {
-                console.error("Recording error:", err);
-                notifications.show({
-                    title: 'Microphone Error',
-                    message: err.message || 'Could not access microphone. Please check permissions.',
-                    color: 'red',
-                });
+                console.error("Start recording error:", err);
+                notifications.show({ title: 'Microphone Error', message: err.message || 'Could not access microphone. Please check permissions.', color: 'red' });
             }
         } else {
-            console.warn("Home: Cannot start recording, connection not established.");
-            // Optionally show a notification
+            console.warn("Home: Cannot start recording, connection not ready.");
+            notifications.show({ title: 'Not Connected', message: 'Please wait for connection before recording.', color: 'orange' });
         }
     }, [ensureConnected, startRecording]);
 
@@ -128,62 +104,44 @@ export const Home: React.FC = () => {
         if (connected) {
             try {
                 const result = await sendMessage(message, callback);
-                console.log("Message sent to WebSocket, result:", result);
-                if (!result) { // Check if sendMessage indicates failure
-                    notifications.show({
-                        title: 'Message Error',
-                        message: 'Failed to send message.',
-                        color: 'red',
-                    });
+                console.log("Message sent via hook, result:", result);
+                // Check if sendMessage itself indicates an immediate failure (if applicable)
+                if (result === false) { // Adjust based on sendMessage's return value
+                    notifications.show({ title: 'Message Error', message: 'Failed to send message.', color: 'red' });
                 }
             } catch (err: any) {
-                console.error('Failed to send message:', err);
-                notifications.show({
-                    title: 'Message Error',
-                    message: err.message || 'Failed to send message.',
-                    color: 'red',
-                });
-                // Optionally re-throw or handle differently
+                console.error('Send message error:', err);
+                notifications.show({ title: 'Message Error', message: err.message || 'Failed to send message.', color: 'red' });
             }
         } else {
-            console.warn("Home: Cannot send message, connection not established.");
-            notifications.show({
-                title: 'Not Connected',
-                message: 'Please wait for the connection to establish.',
-                color: 'orange',
-            });
+            console.warn("Home: Cannot send message, connection not ready.");
+            notifications.show({ title: 'Not Connected', message: 'Please wait for connection to send messages.', color: 'orange' });
         }
     }, [ensureConnected, sendMessage]);
 
-    // Handler for creating a new chat session
     const handleNewChat = useCallback(async () => {
         console.log("Home: Starting new chat session");
-        // 1. End the current conversation (if active)
         if (connectionState === ConnectionState.CONNECTED) {
-            await handleDisconnect();
+            await handleDisconnect(); // Disconnect existing session
         }
+        // Clear messages in the UI state via the hook
+        // Optionally, auto-connect the new chat immediately:
+        // await handleConnect();
     }, [connectionState, handleDisconnect]);
 
-    // Handler for selecting an existing chat (Placeholder - requires logic to load chat history)
     const handleSelectChat = useCallback((chatId: string) => {
         console.log("Home: Selecting chat:", chatId);
-        // TODO:
-        // 1. End current connection if active and different chat.
-        // 2. Fetch messages for `chatId` from Firebase/storage.
-        // 3. Update the `messages` state managed by the hook (or parent).
-        // 4. Potentially start a new connection associated with this `conversationId`.
-        notifications.show({ message: `Loading chat ${chatId}... (Not Implemented)`, color: 'blue' });
-        // Example: If switching, clear current state and connect
-        // if (chatId !== conversationId) {
-        //    handleNewChat().then(() => {
-        //       // setMessages(fetchedMessages); // Update local message state
-        //       // startConversation({ associatedConversationId: chatId }); // Reconnect if needed
-        //    });
-        // }
+        // --- Placeholder: Implement actual chat loading logic ---
+        // 1. Compare chatId with current conversationId. If different:
+        // 2. Call handleNewChat() to disconnect and clear current state.
+        // 3. Fetch message history for `chatId` from your backend/storage.
+        // 4. Update the `messages` state (likely via a setter from your hook or prop drilling).
+        // 5. Potentially call `startConversation({ associatedConversationId: chatId })` if needed.
+        notifications.show({ message: `Loading chat ${chatId}... (Implementation Pending)`, color: 'blue' });
+        // --- End Placeholder ---
     }, [conversationId, handleNewChat]); // Add dependencies as needed
 
-
-    // Clean up connection on unmount
+    // Effect for WebSocket cleanup on component unmount
     useEffect(() => {
         return () => {
             console.log("Home: Cleaning up WebSocket connection on unmount");
@@ -191,89 +149,74 @@ export const Home: React.FC = () => {
         };
     }, [endConversation]);
 
-    // --- Audio Level Visualization (Kept logic, but rendering removed from this component) ---
+    // Effect for updating audio level visualization state
     useEffect(() => {
         let animationFrame: number | null = null;
-        if (connectionState === ConnectionState.CONNECTED) {
+        // Only run the loop if the mic is actively recording
+        if (isRecording) {
             const updateAudioLevels = () => {
-                const inputLevel = getInputAudioLevel();
-                const outputLevel = getOutputAudioLevel();
-                // console.log(`Input: ${inputLevel.toFixed(2)}, Output: ${outputLevel.toFixed(2)}`); // Debugging
-                // Update canvas refs if they were being used for visualization elsewhere
+                const inputLevel = getInputAudioLevel ? getInputAudioLevel() : 0; // Check if function exists
+                setClientAudioLevel(inputLevel); // Update state for prop drilling
                 animationFrame = requestAnimationFrame(updateAudioLevels);
             };
             animationFrame = requestAnimationFrame(updateAudioLevels);
+        } else {
+            // Reset level to 0 if not recording
+            setClientAudioLevel(0);
         }
+        // Cleanup function
         return () => {
-            if (animationFrame) cancelAnimationFrame(animationFrame);
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
         };
-    }, [connectionState, getInputAudioLevel, getOutputAudioLevel]);
+    }, [isRecording, getInputAudioLevel]); // Rerun only when recording status changes
 
 
     return (
         <AppShell
             header={{ height: 60 }}
-            padding={0} // No padding for AppShell itself
-            style={{
-                position: 'relative', // Changed from 'fixed'
-                height: '100vh',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden', // Prevent body scroll
-                backgroundColor: 'var(--mantine-color-dark-9)' // Ensure bg color
-            }}
+            padding={0}
+            style={{ position: 'relative', height: '100vh', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'var(--mantine-color-dark-9)' }}
         >
-            {/* Loading overlay while profile is loading */}
-            <LoadingOverlay
-                visible={profileLoading && !user} // Show only initially while profile and user context load
-                zIndex={1000}
-                overlayProps={{ radius: "sm", blur: 2 }}
-            />
+            <LoadingOverlay visible={profileLoading && !user} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
 
             <Header
                 selectedMode={selectedMode}
                 onModeChange={setSelectedMode}
-                onResetAPIKey={() => {}} // Implement if needed
-                showSettings={true} // Or control based on state/props
+                onResetAPIKey={() => { /* Implement reset logic */ }}
+                showSettings={true} // Or based on logic
             />
 
-            <AppShell.Main style={{
-                flex: 1, // Takes remaining height
-                height: 'calc(100vh - 60px)', // Explicit height calculation
-                overflow: 'hidden', // Prevent double scrollbars
-                display: 'flex', // Needed for flex child
-                flexDirection: 'column',
-                position: 'relative', // Ensure context for absolutely positioned children if any
-            }}>
+            {/* Main content area below the fixed header */}
+            <AppShell.Main style={{ paddingTop: '60px', flex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <SignedIn>
-                    {/* EnhancedChatSection now handles its own empty state */}
                     <EnhancedChatSection
                         connectionState={connectionState}
                         isThinking={isThinking}
                         isRecording={isRecording}
                         isSpeaking={isSpeaking}
+                        audioLevel={clientAudioLevel} // Pass the client audio level
                         connectionError={error}
                         onStartRecording={handleStartRecording}
                         onStopRecording={handleStopRecording}
-                        onDisconnect={handleDisconnect} // Pass disconnect if needed (e.g., manual disconnect button)
-                        onConnect={handleConnect} // Pass connect if needed (e.g., manual connect button)
+                        onDisconnect={handleDisconnect}
+                        onConnect={handleConnect}
                         onSendMessage={handleSendMessage}
-                        onNewChat={handleNewChat} // Pass new chat handler
-                        onSelectChat={handleSelectChat} // Pass select chat handler
-                        onCloseChat={handleSelectChat} // Or specific archive/delete handler
-                        // Pass refs only if needed by ChatSection or sub-components for visualization
-                        // clientCanvasRef={clientCanvasRef}
-                        // serverCanvasRef={serverCanvasRef}
+                        onNewChat={handleNewChat}
+                        onSelectChat={handleSelectChat}
+                        onCloseChat={handleSelectChat} // Use specific handler if needed
                         messages={messages}
-                        conversationId={conversationId} // Pass current conversation ID
+                        conversationId={conversationId}
                     />
                 </SignedIn>
                 <SignedOut>
-                    {/* AuthOverlay should cover the main area */}
                     <AuthOverlay />
                 </SignedOut>
             </AppShell.Main>
         </AppShell>
     );
 };
+
+// Ensure Home is exported if needed, adjust based on your routing setup
+// export default Home;
