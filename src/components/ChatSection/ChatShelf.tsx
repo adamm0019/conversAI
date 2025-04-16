@@ -363,7 +363,7 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
                 </Group>
             </Modal>
             <Modal opened={deleteModalOpen} onClose={closeDeleteModal} title="Delete Chat" centered
-                   size="sm" /* ... other props ... */>
+                   size="sm">
                 <Text size="sm" mb="lg">Permanently delete this chat? This cannot be undone.</Text>
                 <Group justify="flex-end" mt="xl">
                     <Button variant="default" onClick={closeDeleteModal}>Cancel</Button>

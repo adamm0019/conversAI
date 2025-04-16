@@ -1,26 +1,19 @@
 // src/contexts/ProfileContext.tsx
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useUserProfile, UserProfile, UserLanguageProgress } from '../services/UserProfileService';
-import { DynamicVariables } from '../types/dynamicVariables';
+import { useUserProfile, UserProfile, UserLanguageProgress, UserSettings, UseUserProfileReturn } from '../services/UserProfileService'; // Verify path, ensure UserSettings is exported/imported
+import { DynamicVariables } from '../types/dynamicVariables'; // Verify path
+import { Timestamp } from 'firebase/firestore';
 
-type ProfileContextType = {
-    profile: UserProfile | null;
-    isLoading: boolean;
-    error: string | null;
-    loadProfile: () => Promise<UserProfile | null>;
-    updateProfile: (updates: Partial<Omit<UserProfile, 'id'>>) => Promise<boolean>;
-    updateLanguageProgress: (language: string, updates: Partial<UserLanguageProgress>) => Promise<boolean>;
-    getLanguageProgress: (language: string) => UserLanguageProgress | null;
-    getActiveLanguage: () => UserLanguageProgress | null;
-    getDynamicVariables: () => DynamicVariables;
-    updateDynamicVariables: (updates: Partial<UserProfile['dynamicVariables']>) => Promise<boolean>;
-    syncLanguageProgress: () => Promise<boolean>;
-};
+// Define the context type, ensuring it matches UseUserProfileReturn
+// No need to redefine everything, just use the imported hook's return type
+export type ProfileContextType = UseUserProfileReturn;
 
+// Create the context
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
+// Provider component
 export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const profileService = useUserProfile();
+    const profileService = useUserProfile(); // Hook provides the full value
 
     return (
         <ProfileContext.Provider value={profileService}>
@@ -29,6 +22,7 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
     );
 };
 
+// Custom hook to use the profile context
 export const useProfile = (): ProfileContextType => {
     const context = useContext(ProfileContext);
     if (context === undefined) {
@@ -37,7 +31,7 @@ export const useProfile = (): ProfileContextType => {
     return context;
 };
 
-// Helper hook to get dynamic variables for ElevenLabs
+// Optional helper hook (remains the same)
 export const useDynamicVariables = (): DynamicVariables => {
     const { getDynamicVariables } = useProfile();
     return getDynamicVariables();
