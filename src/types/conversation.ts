@@ -1,3 +1,5 @@
+import { PronunciationFeedback } from '../services/AzurePronunciationService';
+
 export interface ContentItem {
   type: string;
   text: string;
@@ -25,6 +27,10 @@ export interface EnhancedConversationItem {
   timestamp: number;
   isThinking?: boolean;
   audioUrl?: string;
+  referenceText?: string; // Text that the user was trying to say (for pronunciation assessment)
+  feedback?: PronunciationFeedback; // Feedback on pronunciation, grammar, etc.
+  language?: string; // Language code (e.g., 'en-US', 'es-ES')
+  translation?: string; // Translation of the message
 }
 
 export interface ConversationMessage {

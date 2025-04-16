@@ -1,11 +1,12 @@
 // src/components/ChatSection/MessageBubble.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Text, ActionIcon, Tooltip, Collapse } from '@mantine/core';
+import { Box, Text, ActionIcon, Tooltip, Collapse, Group } from '@mantine/core';
 import { IconCopy, IconCheck, IconVolume, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { styles } from './styles'; // Assuming styles.ts is in the same folder or adjust path
 import { EnhancedConversationItem, ContentItem } from '../../types/conversation';
 import { formatDistanceToNowStrict } from 'date-fns'; // For relative timestamp
+import FeedbackMessage from '../FeedbackMessage/FeedbackMessage'; // Import the FeedbackMessage component
 
 interface MessageBubbleProps {
   item: EnhancedConversationItem;
@@ -23,6 +24,12 @@ const copyIconVariants = {
   animate: { opacity: 0.6, scale: 1, transition: { duration: 0.2 } },
   hover: { opacity: 1, scale: 1.1 },
   exit: { opacity: 0, scale: 0.7, transition: { duration: 0.15 } }
+};
+
+const feedbackVariants = {
+  hidden: { opacity: 0, y: 10, height: 0 },
+  visible: { opacity: 1, y: 0, height: 'auto', transition: { duration: 0.4, ease: 'easeOut' } },
+  exit: { opacity: 0, y: -5, height: 0, transition: { duration: 0.2 } }
 };
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
@@ -79,6 +86,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
 
   const hasAudio = !!item.formatted?.file?.url;
   const showCopyButton = isAssistant && fullText.trim().length > 0 && item.status !== 'in_progress';
+  const hasFeedback = !!item.feedback;
+
+  // Determine if this is a reference text from the assistant (for pronunciation practice)
+  const isPronunciationReference = isAssistant && !!item.referenceText;
 
   // Combine base and role-specific styles
   const bubbleStyle = {
@@ -100,13 +111,36 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: isAssistant ? 'flex-start' : 'flex-end',
+            width: '100%',
           }}
           onHoverStart={() => setIsHovering(true)}
           onHoverEnd={() => setIsHovering(false)}
       >
-        <Box style={bubbleStyle}>
+        <Box style={{
+          ...bubbleStyle,
+          // If this is a pronunciation reference, style it differently
+          ...(isPronunciationReference ? {
+            backgroundColor: 'rgba(25, 118, 210, 0.1)',
+            border: '1px dashed rgba(25, 118, 210, 0.3)',
+          } : {})
+        }}>
+          {/* Reference Text Badge - shown for pronunciation practice examples */}
+          {isPronunciationReference && (
+              <Group gap="xs" mb="xs">
+                <Text size="xs" c="blue.5" fw={500}>Practice this:</Text>
+              </Group>
+          )}
+
           {/* Main Text Content */}
-          <Text style={styles.messageText} component="div"> {/* Use component="div" for block display */}
+          <Text style={{
+            ...styles.messageText,
+            // If this is a reference text, make it stand out
+            ...(isPronunciationReference ? {
+              fontWeight: 500,
+              fontSize: '16px',
+              color: 'var(--mantine-color-blue-8)'
+            } : {})
+          }} component="div">
             {/* Basic Typing Indicator (replace pulseAnimation if needed) */}
             {isAssistant && item.status === 'in_progress' ? (
                 <>
@@ -126,6 +160,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
                 getDisplayText(item)
             )}
           </Text>
+
+          {/* Translation - displayed if available */}
+          {item.translation && (
+              <Text size="xs" mt="xs" c="dimmed" fs="italic">
+                {item.translation}
+              </Text>
+          )}
 
           {hasAudio && (
               <Box mt="xs" style={{ position: 'relative' }}>
@@ -170,8 +211,29 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
                 </motion.div>
             )}
           </AnimatePresence>
-
         </Box>
+
+        {/* Feedback Message - displayed below the message if feedback is available */}
+        <AnimatePresence>
+          {hasFeedback && (
+              <motion.div
+                  variants={feedbackVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  style={{
+                    alignSelf: isAssistant ? 'flex-start' : 'flex-end',
+                    width: '100%',
+                    maxWidth: '90%',
+                    marginTop: '8px',
+                    marginLeft: isAssistant ? '12px' : 'auto',
+                    marginRight: isAssistant ? 'auto' : '12px',
+                  }}
+              >
+                <FeedbackMessage feedback={item.feedback} />
+              </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Timestamp */}
         <Tooltip label={formatFullTimestamp(item.created_at)} position="bottom" withArrow disabled={!item.created_at}>
@@ -196,6 +258,11 @@ export default MessageBubble;
 
 // Determines the primary text content to display
 function getDisplayText(item: EnhancedConversationItem): string {
+  // If this is a reference text for pronunciation practice, use that instead
+  if (item.referenceText && item.role === 'assistant') {
+    return item.referenceText;
+  }
+
   // Prioritize formatted transcript or text if available
   if (item.formatted?.transcript) return item.formatted.transcript;
   if (item.formatted?.text) return item.formatted.text;
