@@ -9,31 +9,43 @@ import ModulesPage from './pages/Modules';
 import { Notifications } from '@mantine/notifications';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFirebaseChat } from './lib/firebase/firebaseConfig';
 import { ProfileProvider } from './contexts/ProfileContext'; 
 
 function App() {
   const { user, isLoaded } = useUser();
-  const { initializeFirebase, createUserProfile } = useFirebaseChat();
+  const { initializeFirebase, createUserProfile, isFirebaseInitialized } = useFirebaseChat();
+  const [initializationAttempted, setInitializationAttempted] = useState(false);
 
   useEffect(() => {
     const initUser = async () => {
       if (user) {
-        const isInitialized = await initializeFirebase();
-        if (isInitialized) {
-          
-          await createUserProfile({
-            email: user.primaryEmailAddress?.emailAddress || '',
-          });
+        try {
+          const isInitialized = await initializeFirebase();
+          if (isInitialized) {
+            await createUserProfile({
+              email: user.primaryEmailAddress?.emailAddress || '',
+            });
+          } else {
+            console.log('Running in local-only mode');
+            // Continue without Firebase, we'll use localStorage fallbacks
+          }
+        } catch (error) {
+          console.error('Failed to initialize Firebase:', error);
+          // Continue without Firebase, we'll use localStorage fallbacks
+        } finally {
+          setInitializationAttempted(true);
         }
+      } else {
+        setInitializationAttempted(true);
       }
     };
 
-    if (isLoaded) {
+    if (isLoaded && !initializationAttempted) {
       initUser();
     }
-  }, [user, isLoaded]);
+  }, [user, isLoaded, initializationAttempted]);
 
   if (!isLoaded) {
     return <div>Loading...</div>;

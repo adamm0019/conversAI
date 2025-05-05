@@ -185,6 +185,7 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({
     const [isInteracting, setIsInteracting] = useState(false);
     const [rawChats, setRawChats] = useState<Chat[]>([]); 
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [chatToDelete, setChatToDelete] = useState<string | null>(null);
@@ -203,17 +204,40 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({
     
     useEffect(() => {
         setIsLoading(true);
-        const unsubscribe = subscribeToChats((updatedChats) => {
-            
-            const sortedChats = updatedChats.sort((a, b) => {
-                const timeA = a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : new Date(a.timestamp || 0).getTime();
-                const timeB = b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : new Date(b.timestamp || 0).getTime();
-                return timeB - timeA; 
+        setLoadError(null);
+        
+        try {
+            const unsubscribe = subscribeToChats((updatedChats) => {
+                // Sort chats by timestamp (newest first)
+                const sortedChats = updatedChats.sort((a, b) => {
+                    const timeA = a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : new Date(a.timestamp || 0).getTime();
+                    const timeB = b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : new Date(b.timestamp || 0).getTime();
+                    return timeB - timeA; 
+                });
+                setRawChats(sortedChats); 
+                setIsLoading(false);
             });
-            setRawChats(sortedChats); 
+            
+            // Add a demo chat if no chats exist and loading is complete
+            setTimeout(() => {
+                if (rawChats.length === 0 && !isLoading) {
+                    // Create an empty array if nothing was loaded
+                    setRawChats([]);
+                }
+            }, 1500);
+            
+            return () => {
+                if (typeof unsubscribe === 'function') {
+                    unsubscribe();
+                }
+            };
+        } catch (error) {
+            console.error('Error subscribing to chats:', error);
+            setLoadError('Failed to load chats');
             setIsLoading(false);
-        });
-        return () => unsubscribe();
+            setRawChats([]);
+            return () => {};
+        }
     }, [subscribeToChats]);
 
     
@@ -302,75 +326,118 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({
     };
 
     return (
-        <>
-            {/* Trigger Zone */}
-            <motion.div ref={triggerRef} style={styles.shelfTrigger} onHoverStart={handleMouseEnter}
-                        onHoverEnd={handleMouseLeave} title="Open Chat History">
-                <IconLayoutSidebarLeftExpand size={20} stroke={1.5} style={styles.shelfTriggerIcon}/>
-            </motion.div>
-
-            {/* Shelf */}
-            <motion.div ref={shelfRef} style={styles.shelf} variants={shelfVariants} initial="closed"
-                        animate={isOpen ? "open" : "closed"} transition={shelfTransition}
-                        onHoverStart={handleMouseEnter} onHoverEnd={handleMouseLeave} aria-hidden={!isOpen}>
-                <Box style={styles.shelfContent}>
-                    {/* Shelf Header */}
-                    <Box style={styles.shelfHeader}>
-                        <Button fullWidth leftSection={<IconPlus size={18} stroke={1.5}/>} variant="light"
-                                style={styles.newChatButton} onClick={onNewChat} component={motion.button}
-                                whileHover={{scale: 1.03}} whileTap={{scale: 0.97}}>
-                            New Chat
-                        </Button>
-                    </Box>
-                    {/* Shelf List */}
-                    <ScrollArea style={styles.shelfList} type="auto" scrollbarSize={8} offsetScrollbars="y">
-                        <LoadingOverlay visible={isLoading} zIndex={1} overlayProps={{blur: 1}}/>
-                        <AnimatePresence mode="popLayout">
-                            {Object.entries(groupedChats).map(([group, groupChats]) => (
-                                <motion.div key={group} layout>
-                                    <Text style={styles.dateDividerChat}>{group}</Text>
-                                    {groupChats.map((chat) => (
-                                        <ChatItem
-                                            key={chat.id} 
+        <Box>
+            <div ref={triggerRef} style={styles.shelfTrigger}
+                onClick={() => setIsOpen(!isOpen)}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                <IconLayoutSidebarLeftExpand size={24} stroke={1.5} style={styles.shelfTriggerIcon} />
+            </div>
+            <motion.div 
+                ref={shelfRef}
+                style={styles.shelf}
+                initial="closed"
+                animate={isOpen ? "open" : "closed"}
+                variants={shelfVariants}
+                transition={shelfTransition}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                <Box style={styles.shelfHeader}>
+                    <Text style={{fontSize: '1.1rem', fontWeight: 500}}>Conversations</Text>
+                    <Button 
+                        variant="subtle" 
+                        color="blue" 
+                        size="sm"
+                        radius="xl"
+                        leftSection={<IconPlus size={16} />}
+                        onClick={onNewChat}
+                        style={styles.newChatButton}
+                    >
+                        New Chat
+                    </Button>
+                </Box>
+                
+                <ScrollArea style={styles.shelfList} scrollbarSize={6} type="hover">
+                    <Box style={styles.shelfContent} pos="relative">
+                        <LoadingOverlay visible={isLoading} />
+                        
+                        {loadError && (
+                            <Box p="md" mt="lg" ta="center">
+                                <Text color="red" size="sm">{loadError}</Text>
+                                <Button 
+                                    variant="subtle" 
+                                    color="blue" 
+                                    size="xs"
+                                    mt="md"
+                                    onClick={onNewChat}
+                                >
+                                    Start a New Chat
+                                </Button>
+                            </Box>
+                        )}
+                        
+                        {!isLoading && !loadError && rawChats.length === 0 && (
+                            <Box p="md" mt="lg" ta="center">
+                                <Text size="sm" color="dimmed">No conversations yet</Text>
+                                <Button 
+                                    variant="subtle" 
+                                    color="blue" 
+                                    size="xs"
+                                    mt="md"
+                                    onClick={onNewChat}
+                                >
+                                    Start a New Chat
+                                </Button>
+                            </Box>
+                        )}
+                        
+                        {/* Render chat groups */}
+                        {Object.entries(groupedChats).map(([groupName, chats]) => (
+                            <Box key={groupName} mb="md">
+                                <Text size="xs" color="dimmed" pl="sm" pb="xs" style={styles.dateDividerChat}>{groupName}</Text>
+                                <AnimatePresence initial={false}>
+                                    {chats.map(chat => (
+                                        <ChatItem 
+                                            key={chat.id}
                                             chat={chat}
-                                            isActive={activeChat === chat.id}
-                                            onSelectChat={onSelectChat} 
-                                            onRenameClick={handleRenameClick} 
-                                            onDeleteClick={handleDeleteClick} 
-                                            
+                                            isActive={chat.id === activeChat}
+                                            onSelectChat={onSelectChat}
+                                            onRenameClick={handleRenameClick}
+                                            onDeleteClick={handleDeleteClick}
                                         />
                                     ))}
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                        {!isLoading && rawChats.length === 0 && (
-                            <Text c="dimmed" ta="center" size="sm" mt="xl" p="md">No chat history.</Text>)}
-                    </ScrollArea>
-                </Box>
+                                </AnimatePresence>
+                            </Box>
+                        ))}
+                    </Box>
+                </ScrollArea>
+                
+                {/* Delete Modal */}
+                <Modal opened={deleteModalOpen} onClose={closeDeleteModal} title="Delete Chat" centered size="sm">
+                    <Text size="sm">Are you sure you want to delete this chat? This action cannot be undone.</Text>
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="outline" onClick={closeDeleteModal}>Cancel</Button>
+                        <Button color="red" onClick={handleConfirmDelete}>Delete</Button>
+                    </Group>
+                </Modal>
+                
+                {/* Rename Modal */}
+                <Modal opened={renameModalOpen} onClose={closeRenameModal} title="Rename Chat" centered size="sm">
+                    <TextInput
+                        value={newChatTitle}
+                        onChange={(e) => setNewChatTitle(e.target.value)}
+                        placeholder="Enter new title"
+                        data-autofocus
+                    />
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="outline" onClick={closeRenameModal}>Cancel</Button>
+                        <Button color="blue" onClick={handleConfirmRename}>Rename</Button>
+                    </Group>
+                </Modal>
             </motion.div>
-
-            {/* Modals */}
-            <Modal opened={renameModalOpen} onClose={closeRenameModal} title="Rename Chat" centered
-                   size="sm">
-                <TextInput value={newChatTitle} onChange={(event) => setNewChatTitle(event.currentTarget.value)}
-                           placeholder="Enter new chat name" data-autofocus
-                           onKeyDown={(e) => e.key === 'Enter' && handleConfirmRename()}/>
-                <Group justify="flex-end" mt="xl">
-                    <Button variant="default" onClick={closeRenameModal}>Cancel</Button>
-                    <Button color="blue" onClick={handleConfirmRename}
-                            disabled={!newChatTitle.trim() || newChatTitle === chatToRename?.title}
-                            loading={isLoading}>Rename</Button>
-                </Group>
-            </Modal>
-            <Modal opened={deleteModalOpen} onClose={closeDeleteModal} title="Delete Chat" centered
-                   size="sm">
-                <Text size="sm" mb="lg">Permanently delete this chat? This cannot be undone.</Text>
-                <Group justify="flex-end" mt="xl">
-                    <Button variant="default" onClick={closeDeleteModal}>Cancel</Button>
-                    <Button color="red" onClick={handleConfirmDelete} loading={isLoading}>Delete</Button>
-                </Group>
-            </Modal>
-        </>
+        </Box>
     );
 }); 
 ChatShelf.displayName = 'ChatShelf'; 
