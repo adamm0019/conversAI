@@ -14,10 +14,10 @@ import { notifications } from '@mantine/notifications';
 interface SettingsModalProps {
   opened: boolean;
   onClose: () => void;
-  // Removed onResetAPIKey prop as it's no longer needed
+  
 }
 
-// Example data - replace with actual data fetching/storage logic
+
 const conversationModes = [
   { value: 'tutor', label: 'Tutor Mode' },
   { value: 'friend', label: 'Friend Mode (Casual Chat)' },
@@ -27,14 +27,14 @@ const interfaceLanguages = [
   { value: 'en', label: 'English' },
   { value: 'es', label: 'Español (Spanish)' },
   { value: 'fr', label: 'Français (French)' },
-  // Add more languages your UI supports
+  
 ];
 
 const assistantPersonas = [
   { value: 'friendly', label: 'Friendly & Encouraging' },
   { value: 'formal', label: 'Formal & Structured' },
   { value: 'neutral', label: 'Neutral & Informative' },
-  // Add more personas as needed
+  
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose }) => {
@@ -42,12 +42,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
   const theme = useMantineTheme();
   const { profile, updateProfileSettings, updateDynamicVariables } = useProfile();
 
-  // --- State for Settings ---
-  // General
+  
+  
   const [defaultMode, setDefaultMode] = useState(profile?.settings?.defaultMode || 'tutor');
   const [uiLanguage, setUiLanguage] = useState(profile?.settings?.uiLanguage || 'en');
 
-  // Speech & Audio
+  
   const [autoEndSentence, setAutoEndSentence] = useState(profile?.settings?.autoEndSentence ?? true);
   const [showTranscription, setShowTranscription] = useState(profile?.settings?.showTranscription ?? true);
   const [speechRate, setSpeechRate] = useState(profile?.settings?.speechRate || 1.0);
@@ -57,13 +57,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
   const [availableInputDevices, setAvailableInputDevices] = useState<{ value: string, label: string }[]>([]);
   const [availableOutputDevices, setAvailableOutputDevices] = useState<{ value: string, label: string }[]>([]);
 
-  // Confirmation Modals
+  
   const [clearHistoryConfirmOpen, setClearHistoryConfirmOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string | null>('general');
 
-  // --- Effects ---
-  // Effect to load available audio devices (Example - requires implementation)
+  
+  
   useEffect(() => {
     const fetchDevices = async () => {
       try {
@@ -73,8 +73,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
           setAvailableOutputDevices([{ value: 'default', label: 'Default Speakers' }]);
           return;
         }
-        // Request permission first (might be needed for full list)
-        await navigator.mediaDevices.getUserMedia({ audio: true }); // Request basic audio permission
+        
+        await navigator.mediaDevices.getUserMedia({ audio: true }); 
 
         const devices = await navigator.mediaDevices.enumerateDevices();
         const inputs = devices
@@ -84,13 +84,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
             .filter(device => device.kind === 'audiooutput')
             .map(device => ({ value: device.deviceId, label: device.label || `Speakers ${availableOutputDevices.length + 1}` }));
 
-        // Add default options
+        
         setAvailableInputDevices([{ value: 'default', label: 'Default Microphone' }, ...inputs]);
         setAvailableOutputDevices([{ value: 'default', label: 'Default Speakers' }, ...outputs]);
 
       } catch (err) {
         console.error("Error fetching media devices:", err);
-        // Fallback to default options if permission denied or error occurs
+        
         setAvailableInputDevices([{ value: 'default', label: 'Default Microphone' }]);
         setAvailableOutputDevices([{ value: 'default', label: 'Default Speakers' }]);
         notifications.show({
@@ -100,18 +100,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
         });
       }
     };
-    if (opened && activeTab === 'speech') { // Fetch only when modal is open and tab is active
+    if (opened && activeTab === 'speech') { 
       fetchDevices();
     }
   }, [opened, activeTab]);
 
-  // --- Handlers ---
+  
   const handleSettingChange = (setting: string, value: any) => {
-    // TODO: Implement saving logic here, likely via context
+    
     console.log(`Setting changed: ${setting} = ${value}`);
-    // Example: updateProfileSettings({ [setting]: value });
+    
 
-    // Update local state immediately for responsiveness
+    
     switch (setting) {
       case 'defaultMode': setDefaultMode(value); break;
       case 'uiLanguage': setUiLanguage(value); break;
@@ -122,14 +122,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
       case 'inputDevice': setInputDevice(value); break;
       case 'outputDevice': setOutputDevice(value); break;
     }
-    // Call context update function (debounced if necessary)
+    
     if(updateProfileSettings) {
       updateProfileSettings({ [setting]: value });
     }
   };
 
   const handleDynamicVariablesUpdate = (variables: Record<string, any>) => {
-    // Call the updateDynamicVariables function from ProfileContext if available
+    
     if (updateDynamicVariables) {
       updateDynamicVariables(variables);
       notifications.show({ message: 'Personalization updated', color: 'green' });
@@ -137,35 +137,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
   };
 
   const handleClearHistory = () => {
-    // TODO: Implement actual chat history clearing logic
+    
     console.log("Clearing chat history...");
-    setClearHistoryConfirmOpen(false); // Close confirmation modal
-    onClose(); // Close settings modal
+    setClearHistoryConfirmOpen(false); 
+    onClose(); 
     notifications.show({ title: 'Chat History Cleared', message: 'Your conversation history has been removed.', color: 'green' });
   };
 
-  // Style overrides for modern look
+  
   const modalStyles = {
     overlay: { background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' },
     content: {
-      background: colorScheme === 'dark' ? 'rgba(37, 38, 43, 0.85)' : 'rgba(255, 255, 255, 0.85)', // Glassy background
+      background: colorScheme === 'dark' ? 'rgba(37, 38, 43, 0.85)' : 'rgba(255, 255, 255, 0.85)', 
       backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
       border: `1px solid ${colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
       boxShadow: theme.shadows.xl,
       borderRadius: theme.radius.lg,
     },
     header: {
-      background: 'transparent', // Make header transparent to see glass effect
+      background: 'transparent', 
       borderBottom: `1px solid ${colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
       paddingBottom: 'var(--mantine-spacing-sm)',
-      marginBottom: 0, // Remove extra space below header
+      marginBottom: 0, 
     },
     title: {
       fontWeight: 600,
       fontSize: theme.fontSizes.lg,
     },
     body: {
-      paddingTop: 0, // Remove padding handled by Tabs/ScrollArea
+      paddingTop: 0, 
     }
   };
 
@@ -360,7 +360,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ opened, onClose })
   );
 };
 
-// Helper components for structure and consistency
+
 const SettingGroup: React.FC<{ title: string; description?: string; children: React.ReactNode }> =
     ({ title, description, children }) => (
         <Stack gap="xs">

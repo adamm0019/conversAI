@@ -23,7 +23,7 @@ interface WebSocketHookOptions {
     reconnectDelay?: number;
     onMessageReceived?: (message: EnhancedConversationItem) => void;
     agentId?: string;
-    // Explicitly typed dynamic variables
+    
     dynamicVariables?: DynamicVariables;
 }
 
@@ -32,8 +32,8 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
         serverUrl = 'http://localhost:3001/api/get-signed-url',
         autoReconnect = true,
         onMessageReceived,
-        agentId = 'struNpxnJkL8IlMMev4O', // Your ElevenLabs agent ID
-        dynamicVariables = {} // Default empty object
+        agentId = 'struNpxnJkL8IlMMev4O', 
+        dynamicVariables = {} 
     } = options;
 
     const { user } = useUser();
@@ -66,7 +66,7 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
             total_progress: 0
         };
 
-        // Merge defaults with provided variables and ensure no undefined values
+        
         return sanitizeDynamicVariables({ ...defaults, ...dynamicVariables });
     }, [user, dynamicVariables]);
 
@@ -130,7 +130,7 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
             if (!res.ok) throw new Error('Failed to fetch signed URL');
             const { signedUrl } = await res.json();
 
-            // Get personalization variables with proper typing
+            
             const personalizedVars: DynamicVariables = sanitizeDynamicVariables(getDefaultDynamicVariables());
 
             console.log('Starting conversation with dynamic variables:', personalizedVars);
@@ -138,7 +138,7 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
             const conversation = await Conversation.startSession({
                 signedUrl,
                 clientTools: {},
-                // Add dynamic variables to the session config
+                
                 dynamicVariables: personalizedVars,
                 agentId: agentId,
                 onConnect: ({ conversationId }) => {
@@ -259,22 +259,22 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
         }
     }, [createMessageObject]);
 
-    // Update dynamic variables at runtime
+    
     const updateDynamicVariables = useCallback((newVariables: Record<string, any>): void => {
         if (!conversationRef.current?.isOpen()) {
             console.warn('Cannot update dynamic variables: not connected to ElevenLabs');
             return;
         }
 
-        // Sanitize variables to ensure type safety
+        
         const safeVariables = sanitizeDynamicVariables(newVariables);
 
-        // Update conversation with new dynamic variables
+        
         try {
             console.log('Updating dynamic variables:', safeVariables);
 
-            // This will be replaced with the actual API method when available
-            // conversationRef.current.updateDynamicVariables(safeVariables);
+            
+            
         } catch (error) {
             console.error('Failed to update dynamic variables:', error);
         }
@@ -339,6 +339,6 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
         getInputAudioLevel,
         getOutputAudioLevel,
         setVolume,
-        updateDynamicVariables // Method to update variables at runtime
+        updateDynamicVariables 
     };
 };

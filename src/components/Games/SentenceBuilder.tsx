@@ -27,7 +27,7 @@ interface SentenceChallenge {
     completed: boolean;
 }
 
-// some sample challenges
+
 const challenges: SentenceChallenge[] = [
     {
         id: 1,
@@ -76,15 +76,15 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({ onClose, onGam
     const [gameComplete, setGameComplete] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
-    // initialising the game with shuffled sentences
+    
     useEffect(() => {
         const shuffledChallenges = [...challenges]
             .sort(() => Math.random() - 0.5)
-            .slice(0, 5) // Take 5 random challenges
+            .slice(0, 5) 
             .map(challenge => ({
                 ...challenge,
                 completed: false,
-                // Shuffle the words for the first display
+                
                 words: [...challenge.words].sort(() => Math.random() - 0.5)
             }));
         
@@ -92,7 +92,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({ onClose, onGam
         setRemainingWords(shuffledChallenges[0].words);
     }, []);
 
-    // timer
+    
     useEffect(() => {
         if (timeLeft <= 0 || gameComplete) return;
 
@@ -110,32 +110,32 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({ onClose, onGam
         return () => clearInterval(timer);
     }, [timeLeft, gameComplete]);
 
-    // formatting the time display
+    
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // handling the word selection
+    
     const handleWordSelect = (word: string) => {
-        // adding word to user's sentence
+        
         const newUserSentence = [...userSentence, word];
         setUserSentence(newUserSentence);
         
-        // removing the word from the list of remaining words
+        
         const newRemainingWords = remainingWords.filter((w, i) => 
             i !== remainingWords.findIndex(rw => rw === word)
         );
         setRemainingWords(newRemainingWords);
         
-        // checking then if the sentence is complete
+        
         if (newRemainingWords.length === 0) {
             checkSentence(newUserSentence);
         }
     };
 
-    // removing the word
+    
     const handleRemoveWord = (index: number) => {
         const word = userSentence[index];
         
@@ -143,16 +143,16 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({ onClose, onGam
         newUserSentence.splice(index, 1);
         setUserSentence(newUserSentence);
         
-        // adding the word back
+        
         setRemainingWords([...remainingWords, word]);
     };
 
-    // checking if the sentence is correct
+    
     const checkSentence = (sentence: string[]) => {
         const userSentenceStr = sentence.join(' ');
         const isCorrect = userSentenceStr === gameItems[currentIndex].correctSentence;
         
-        // updating the completed status
+        
         const updatedItems = [...gameItems];
         updatedItems[currentIndex].completed = isCorrect;
         setGameItems(updatedItems);
@@ -172,7 +172,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({ onClose, onGam
                 }
             }, 1500);
         } else {
-            // resetting the current sentence for retry if incorrect
+            
             setUserSentence([]);
             setRemainingWords([...gameItems[currentIndex].words].sort(() => Math.random() - 0.5));
         }

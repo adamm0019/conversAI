@@ -3,38 +3,38 @@ import { Box, Tooltip, useMantineTheme, MantineColor } from '@mantine/core';
 import { motion } from 'framer-motion';
 
 interface VoiceActivityIndicatorProps {
-    audioLevel: number; // Expected range: 0 to 1
-    onClick: () => void; // Function to call when clicked (stop recording)
-    size?: number; // Diameter of the circular indicator area
-    color?: MantineColor | string; // Color of the bars
+    audioLevel: number; 
+    onClick: () => void; 
+    size?: number; 
+    color?: MantineColor | string; 
     tooltipLabel?: string;
 }
 
-const NUM_BARS = 20; // Number of visualizer bars
-const MIN_BAR_HEIGHT = 2; // Minimum height for bars even with no sound
-const MAX_BAR_HEIGHT_SCALE = 0.8; // Max height relative to indicator size/2
+const NUM_BARS = 20; 
+const MIN_BAR_HEIGHT = 2; 
+const MAX_BAR_HEIGHT_SCALE = 0.8; 
 
 const VoiceActivityIndicator: React.FC<VoiceActivityIndicatorProps> = ({
                                                                            audioLevel,
                                                                            onClick,
-                                                                           size = 42, // Corresponds roughly to Mantine's 'xl' ActionIcon size
-                                                                           color = 'blue', // Default color, will be overridden by prop in EnhancedChatSection
+                                                                           size = 42, 
+                                                                           color = 'blue', 
                                                                            tooltipLabel = 'Stop recording',
                                                                        }) => {
     const theme = useMantineTheme();
-    // Resolve color based on the prop passed or default Mantine primary color
+    
     const barColor = theme.variantColorResolver({
         color: color || theme.primaryColor,
         theme,
-        variant: 'filled', // Use filled variant color logic
+        variant: 'filled', 
     }).background;
 
-    const svgSize = size * 0.8; // SVG drawing area size
+    const svgSize = size * 0.8; 
     const center = svgSize / 2;
     const maxPossibleHeight = center * MAX_BAR_HEIGHT_SCALE;
-    const barWidth = svgSize / (NUM_BARS * 1.8); // Adjust spacing
+    const barWidth = svgSize / (NUM_BARS * 1.8); 
 
-    // Calculate bar heights based on audio level and position
+    
     const getBarHeight = (index: number): number => {
         const distanceFromCenter = Math.abs(index - (NUM_BARS - 1) / 2);
         const positionFactor = Math.max(0, 1 - distanceFromCenter / (NUM_BARS / 1.5));
@@ -55,12 +55,12 @@ const VoiceActivityIndicator: React.FC<VoiceActivityIndicatorProps> = ({
                     justifyContent: 'center',
                     cursor: 'pointer',
                     borderRadius: '50%',
-                    // Optional: Add transition for background changes if needed
-                    // transition: 'background-color 0.2s ease',
-                    // ':hover': { backgroundColor: 'rgba(var(--mantine-color-gray-6-rgb), 0.1)' }, // Example hover
+                    
+                    
+                    
                 }}
                 aria-label={tooltipLabel}
-                component={motion.div} // Add motion for hover/tap effects
+                component={motion.div} 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
             >
@@ -73,20 +73,20 @@ const VoiceActivityIndicator: React.FC<VoiceActivityIndicatorProps> = ({
                     <g transform={`translate(0, ${center})`}> {/* Center group vertically */}
                         {Array.from({ length: NUM_BARS }).map((_, i) => {
                             const barHeight = getBarHeight(i);
-                            const x = (svgSize / NUM_BARS) * i; // Bar positioning
+                            const x = (svgSize / NUM_BARS) * i; 
 
                             return (
                                 <motion.rect
                                     key={i}
                                     x={x}
-                                    y={-barHeight / 2} // Center bar vertically around the middle line
+                                    y={-barHeight / 2} 
                                     width={barWidth}
-                                    // Animate the height smoothly
+                                    
                                     initial={{ height: MIN_BAR_HEIGHT }}
                                     animate={{ height: barHeight }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 20 }} // Spring animation
+                                    transition={{ type: 'spring', stiffness: 400, damping: 20 }} 
                                     fill={barColor}
-                                    rx={barWidth / 2} // Rounded corners
+                                    rx={barWidth / 2} 
                                     ry={barWidth / 2}
                                 />
                             );

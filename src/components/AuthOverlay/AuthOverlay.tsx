@@ -1,11 +1,3 @@
-/*
-
-This file is used for the box overlay when a user is signed out. This helps with limiting API usage for unauthenticated accounts
-
-It also contains styling using the old Mantine v3 createStyles API, found here: https://v3.mantine.dev/theming/create-styles/
-
-*/
-
 import { Box, Paper, Text, Button, Stack } from '@mantine/core';
 import { createStyles } from '@mantine/styles'
 import darkModeLogo from '../../../src/assets/conversai-logo-dark.png';

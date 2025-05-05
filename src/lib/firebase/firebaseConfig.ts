@@ -1,5 +1,3 @@
-// firebase configuration file for chat and account persistence
-
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
 import { 
@@ -81,34 +79,46 @@ export const useFirebaseChat = () => {
   const createNewChat = async (firstMessage?: EnhancedConversationItem): Promise<string> => {
     if (!userId) throw new Error('User not authenticated');
 
-    const chatData = {
-      title: 'New Chat',
-      subtitle: firstMessage
-          ? (typeof firstMessage.content === 'string'
-              ? firstMessage.content.substring(0, 50) + '...'
-              : 'New conversation')
-          : 'Empty conversation',
-      timestamp: serverTimestamp(),
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
-      unread: 0,
-      isArchived: false,
-      messages: firstMessage ? [{
-        ...firstMessage,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      }] : [],
-      userId: userId,
-      lastMessage: firstMessage
-          ? (typeof firstMessage.content === 'string'
-              ? firstMessage.content
-              : 'Message sent')
-          : ''
-    };
+    try {
+      const chatData = {
+        title: 'New Chat',
+        subtitle: firstMessage
+            ? (typeof firstMessage.content === 'string'
+                ? firstMessage.content.substring(0, 50) + (firstMessage.content.length > 50 ? '...' : '')
+                : 'New conversation')
+            : 'Empty conversation',
+        timestamp: serverTimestamp(),
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+        unread: 0,
+        isArchived: false,
+        messages: firstMessage ? [{
+          ...firstMessage,
+          timestamp: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        }] : [],
+        userId: userId,
+        lastMessage: firstMessage
+            ? (typeof firstMessage.content === 'string'
+                ? firstMessage.content
+                : 'Message sent')
+            : ''
+      };
 
-    // Make sure we're using the 'chats' collection, not 'users'
-    const chatRef = await addDoc(collection(db, 'chats'), chatData);
-    return chatRef.id;
+      // Create the chat document in Firestore
+      const chatRef = await addDoc(collection(db, 'chats'), chatData);
+      
+      // Verify the document was created successfully
+      if (!chatRef.id) {
+        throw new Error('Failed to create chat document');
+      }
+      
+      console.log('Chat created successfully with ID:', chatRef.id);
+      return chatRef.id;
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+      throw new Error(`Failed to create new chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const addMessageToChat = async (chatId: string, message: EnhancedConversationItem) => {

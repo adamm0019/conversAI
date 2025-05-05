@@ -196,7 +196,7 @@ export const createStaggerChildren = (staggerTime = 0.05) => ({
     }
 });
 
-// CSS animation classes that can be used with Mantine's className prop
+
 export const animationClasses = {
     fadeIn: {
         animation: `${fadeIn} 0.5s ease forwards`

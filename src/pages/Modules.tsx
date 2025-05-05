@@ -47,7 +47,7 @@ import { useInView } from 'react-intersection-observer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 
-// Interfaces
+
 interface PathInfo {
   title: string;
   color: string;
@@ -79,7 +79,7 @@ interface Module {
   nextLesson?: string;
 }
 
-// Custom animations
+
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
@@ -156,7 +156,7 @@ const ModulesPage = () => {
       estimatedTime: '5-7 hours',
       nextLesson: 'Ordering at Restaurants',
     },
-    // More modules - truncated for artifact size
+    
     {
       id: '3',
       title: 'Intermediate Grammar',
@@ -220,7 +220,7 @@ const ModulesPage = () => {
     }
   ];
 
-  // Calculate path and level statistics on path/level change
+  
   useEffect(() => {
     const filteredModules = modules.filter(module => module.path === selectedPath);
     const totalModules = filteredModules.length;
@@ -234,19 +234,19 @@ const ModulesPage = () => {
     });
   }, [selectedPath, selectedLevel]);
 
-  // Filter modules by selected path and level
+  
   const filteredModules = modules.filter(
       module => module.path === selectedPath && module.level === selectedLevel
   );
 
-  // Get all available levels for the selected path
+  
   const availableLevels = [...new Set(
       modules
           .filter(module => module.path === selectedPath)
           .map(module => module.level)
   )].sort((a, b) => a - b);
 
-  // Calculate overall progress for the selected path
+  
   const pathModules = modules.filter(module => module.path === selectedPath);
   const pathProgress = pathModules.length > 0
       ? Math.round(pathModules.reduce((sum, module) => sum + module.progress, 0) / pathModules.length)
@@ -269,7 +269,7 @@ const ModulesPage = () => {
             selectedMode="tutor"
             onModeChange={handleModeChange}
             onResetAPIKey={() => console.log('Reset API key')}
-            showSettings={true} // Changed to true to display settings icon
+            showSettings={true} 
         />
 
         <AppShell.Main style={{
@@ -514,14 +514,14 @@ const ModulesPage = () => {
                     {/* Level nodes */}
                     <Group gap={0} justify="space-between" pos="relative" style={{ zIndex: 2 }}>
                       {availableLevels.map((level, index) => {
-                        // Calculate completion for this level
+                        
                         const levelModules = modules.filter(m => m.path === selectedPath && m.level === level);
                         const completedInLevel = levelModules.filter(m => m.isCompleted).length;
                         const levelProgress = levelModules.length > 0
                             ? (completedInLevel / levelModules.length) * 100
                             : 0;
 
-                        // Determine if this level is locked
+                        
                         const isLocked = index > 0 && levelProgress === 0 &&
                             modules.filter(m => m.path === selectedPath && m.level === availableLevels[index-1])
                                 .some(m => !m.isCompleted);

@@ -74,7 +74,7 @@ export const WordScramble: React.FC<WordScrambleProps> = ({ onClose, onGameCompl
         setWords(shuffled);
     }, []);
 
-    // Timer countdown
+    
     useEffect(() => {
         if (timeLeft <= 0 || gameComplete) return;
 
@@ -104,9 +104,9 @@ export const WordScramble: React.FC<WordScrambleProps> = ({ onClose, onGameCompl
         const newUserInput = [...userInput, letter];
         setUserInput(newUserInput);
         
-        // Check if the word is complete
+        
         if (newUserInput.join('') === words[currentIndex].original) {
-            // Word is solved!
+            
             const newWords = [...words];
             newWords[currentIndex].solved = true;
             setWords(newWords);

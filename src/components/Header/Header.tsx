@@ -20,7 +20,7 @@ import { motion } from 'framer-motion';
 interface HeaderProps {
     selectedMode: string;
     onModeChange: (value: string) => void;
-    onResetAPIKey?: () => void; // Make this optional since it's being phased out
+    onResetAPIKey?: () => void; 
     showSettings: boolean;
 }
 
@@ -29,7 +29,7 @@ const conversationModes = [
     { id: 'friend', icon: IconFriends, label: 'Chat' },
 ];
 
-// --- Logo Component (Moved Outside & Memoized) ---
+
 const LogoComponent: React.FC = React.memo(() => {
     const { colorScheme } = useMantineColorScheme();
     return (
@@ -52,7 +52,7 @@ const LogoComponent: React.FC = React.memo(() => {
 });
 LogoComponent.displayName = 'LogoComponent';
 
-// --- Streak Display Component ---
+
 const StreakDisplay: React.FC = () => {
     const [isHovered, setIsHovered] = React.useState(false);
     const { streakData } = useStreak();

@@ -77,8 +77,8 @@ export const useAudioService = (options: AudioServiceOptions = {}) => {
                 const barHeight = (value / 255) * canvas.height;
 
                 const gradient = canvasCtx.createLinearGradient(0, canvas.height, 0, 0);
-                gradient.addColorStop(0, 'rgba(65, 105, 225, 0.3)'); // RoyalBlue with opacity
-                gradient.addColorStop(1, 'rgba(65, 105, 225, 0.8)'); // RoyalBlue more solid
+                gradient.addColorStop(0, 'rgba(65, 105, 225, 0.3)'); 
+                gradient.addColorStop(1, 'rgba(65, 105, 225, 0.8)'); 
 
                 canvasCtx.fillStyle = gradient;
                 canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);

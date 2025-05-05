@@ -16,7 +16,7 @@ export const theme = createTheme({
       '#061539',
     ],
 
-    // dark mode with slightly bluer blacks
+    
     dark: [
       '#C1C2C5',
       '#A6A7AB',
@@ -26,8 +26,8 @@ export const theme = createTheme({
       '#2C2E33',
       '#25262B',
       '#1A1B1E',
-      '#121418',  // Slightly bluer dark
-      '#0A0B0E',  // Slightly bluer black
+      '#121418',  
+      '#0A0B0E',  
     ],
   },
 
@@ -149,5 +149,4 @@ export const theme = createTheme({
     deg: 135,
   },
   cursorType: 'pointer',
-  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
 });

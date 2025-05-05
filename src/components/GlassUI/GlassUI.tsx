@@ -132,9 +132,9 @@ export const AnimatedBackground: React.FC<{children: ReactNode}> = ({ children }
     );
 };
 
-// Create some css variables for consistent styling
+
 export const glassStyles = {
-    // Glass effects
+    
     glassLight: {
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(10px)',
@@ -146,13 +146,13 @@ export const glassStyles = {
         border: '1px solid rgba(255, 255, 255, 0.05)',
     },
 
-    // Shadows for depth
+    
     shadowSm: '0 2px 6px rgba(0, 0, 0, 0.1)',
     shadowMd: '0 4px 12px rgba(0, 0, 0, 0.15)',
     shadowLg: '0 8px 20px rgba(0, 0, 0, 0.2)',
     shadowInner: 'inset 0 2px 6px rgba(0, 0, 0, 0.15)',
 
-    // Spacing system
+    
     spacing: {
         xs: '4px',
         sm: '8px',
@@ -162,7 +162,7 @@ export const glassStyles = {
         xxl: '48px',
     },
 
-    // Border radius
+    
     radius: {
         sm: '8px',
         md: '12px',
@@ -171,7 +171,7 @@ export const glassStyles = {
         round: '50%',
     },
 
-    // Transitions
+    
     transition: {
         fast: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         normal: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',

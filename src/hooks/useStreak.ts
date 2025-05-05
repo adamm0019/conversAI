@@ -1,4 +1,3 @@
-// src/hooks/useStreak.ts
 import { useState, useCallback } from 'react';
 
 interface StreakData {
@@ -6,6 +5,23 @@ interface StreakData {
     lastInteractionDate: string;
     highestStreak: number;
 }
+
+/**
+ * Calculates the number of days between two dates
+ */
+const daysBetween = (date1: string, date2: string): number => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    
+    // Reset time portion for accurate day calculation
+    d1.setHours(0, 0, 0, 0);
+    d2.setHours(0, 0, 0, 0);
+    
+    // Calculate the difference in milliseconds
+    const diffTime = Math.abs(d2.getTime() - d1.getTime());
+    // Convert to days
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+};
 
 export const useStreak = () => {
     const [showNotification, setShowNotification] = useState(false);
@@ -32,30 +48,55 @@ export const useStreak = () => {
         return streakData;
     }, [streakData]);
 
-    // in useStreak.ts
+    
     const updateStreak = useCallback(() => {
         const currentStreak = getStreakFromStorage();
         const today = new Date().toISOString().split('T')[0];
 
-        // If already interacted today, just return current streak
+        // If already interacted today, don't update streak
         if (currentStreak.lastInteractionDate === today) {
             return currentStreak;
         }
 
-        // Increment streak
-        const newStreak = {
-            currentStreak: currentStreak.currentStreak + 1,
-            lastInteractionDate: today,
-            highestStreak: Math.max(currentStreak.highestStreak, currentStreak.currentStreak + 1)
-        };
+        // Calculate days between last interaction and today
+        const daysDiff = daysBetween(currentStreak.lastInteractionDate, today);
+        
+        let newStreak: StreakData;
+        
+        // If exactly one day has passed, increment the streak
+        if (daysDiff === 1) {
+            newStreak = {
+                currentStreak: currentStreak.currentStreak + 1,
+                lastInteractionDate: today,
+                highestStreak: Math.max(currentStreak.highestStreak, currentStreak.currentStreak + 1)
+            };
+            setShowNotification(true);
+        } 
+        // If more than one day has passed, reset the streak
+        else if (daysDiff > 1) {
+            newStreak = {
+                currentStreak: 1, // Start a new streak
+                lastInteractionDate: today,
+                highestStreak: currentStreak.highestStreak // Keep the highest streak record
+            };
+            setShowNotification(false);
+        }
+        // This handles any edge cases or potential timezone issues
+        else {
+            newStreak = {
+                ...currentStreak,
+                lastInteractionDate: today
+            };
+            setShowNotification(false);
+        }
 
-        // Update localStorage and state
+        // Save the updated streak data to localStorage
         localStorage.setItem('conversationStreak', JSON.stringify(newStreak));
         setStreakData(newStreak);
-        setShowNotification(true);
 
         return newStreak;
     }, [getStreakFromStorage]);
+
     const resetStreak = useCallback(() => {
         const today = new Date().toISOString().split('T')[0];
         const newStreak: StreakData = {

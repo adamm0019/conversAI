@@ -144,7 +144,7 @@ const mockData = {
 export const ProfileDashboard = () => {
   const { user } = useUser();
 
-  // Fixed header implementation with proper props
+  
   const handleModeChange = (mode: string) => {
     console.log('Mode changed:', mode);
   };

@@ -1,7 +1,7 @@
-// src/services/AzurePronunciationService.ts
+
 import { notifications } from '@mantine/notifications';
 
-// Pronunciation assessment result interface
+
 export interface PronunciationAssessmentResult {
     accuracyScore: number;
     fluencyScore: number;
@@ -12,7 +12,7 @@ export interface PronunciationAssessmentResult {
     errorMessage?: string;
 }
 
-// Individual word assessment
+
 export interface PronunciationWord {
     word: string;
     accuracyScore: number;
@@ -21,7 +21,7 @@ export interface PronunciationWord {
     phonemes?: { phoneme: string; accuracyScore: number }[];
 }
 
-// Feedback types for UI rendering
+
 export enum FeedbackType {
     PERFECT = 'perfect',
     GOOD = 'good',
@@ -36,7 +36,7 @@ export enum FeedbackType {
     CHALLENGE = 'challenge'
 }
 
-// Structured feedback object
+
 export interface PronunciationFeedback {
     type: FeedbackType;
     message: string;
@@ -51,7 +51,7 @@ export interface PronunciationFeedback {
     suggestion?: string;
 }
 
-// Configuration for the assessment
+
 export interface PronunciationAssessmentConfig {
     referenceText: string;
     locale: string;
@@ -81,7 +81,7 @@ export class AzurePronunciationService {
         if (this.isInitialized) return true;
 
         try {
-            // Dynamically import the Speech SDK to avoid bundling issues
+            
             const { default: speechSdk } = await import('microsoft-cognitiveservices-speech-sdk');
             this.speechSdk = speechSdk;
             this.isInitialized = true;
@@ -111,20 +111,20 @@ export class AzurePronunciationService {
         const speechConfig = this.speechSdk.SpeechConfig.fromSubscription(this.apiKey, this.region);
         speechConfig.speechRecognitionLanguage = config.locale;
 
-        // Create an audio config from the audio file
+        
         const audioBuffer = new Uint8Array(audioFile);
         const pushStream = this.speechSdk.AudioInputStream.createPushStream();
 
-        // Push the audio data to the stream
+        
         pushStream.write(audioBuffer);
         pushStream.close();
 
         const audioConfig = this.speechSdk.AudioConfig.fromStreamInput(pushStream);
 
-        // Create the recognizer
+        
         const recognizer = new this.speechSdk.SpeechRecognizer(speechConfig, audioConfig);
 
-        // Configure pronunciation assessment
+        
         const pronunciationConfig = new this.speechSdk.PronunciationAssessmentConfig(
             config.referenceText,
             this.speechSdk.PronunciationAssessmentGranularity[config.granularity || 'Phoneme'],
@@ -135,7 +135,7 @@ export class AzurePronunciationService {
             pronunciationConfig.scenarioId = config.scenarioId;
         }
 
-        // Apply the pronunciation config to the recognizer
+        
         this.speechSdk.PronunciationAssessmentConfig.applyTo(pronunciationConfig, recognizer);
 
         return recognizer;
@@ -155,10 +155,10 @@ export class AzurePronunciationService {
                 recognizer.recognizeOnceAsync(
                     (result: any) => {
                         if (result.reason === this.speechSdk.ResultReason.RecognizedSpeech) {
-                            // Get the pronunciation assessment result
+                            
                             const pronunciationResult = this.speechSdk.PronunciationAssessmentResult.fromResult(result);
 
-                            // Process the result
+                            
                             const processedResult: PronunciationAssessmentResult = {
                                 accuracyScore: pronunciationResult.accuracyScore,
                                 fluencyScore: pronunciationResult.fluencyScore,
@@ -170,7 +170,7 @@ export class AzurePronunciationService {
 
                             resolve(processedResult);
                         } else {
-                            // Handle recognition failure
+                            
                             reject({
                                 errorMessage: `Recognition failed: ${result.errorDetails || result.reason}`,
                                 pronunciationScore: 0,
@@ -181,7 +181,7 @@ export class AzurePronunciationService {
                             });
                         }
 
-                        // Clean up
+                        
                         recognizer.close();
                     },
                     (error: any) => {
@@ -217,7 +217,7 @@ export class AzurePronunciationService {
     private processWordResults(pronunciationResult: any): PronunciationWord[] {
         const words: PronunciationWord[] = [];
 
-        // Check if detailed results are available
+        
         if (pronunciationResult.detailResult && pronunciationResult.detailResult.words) {
             for (const wordResult of pronunciationResult.detailResult.words) {
                 const word: PronunciationWord = {
@@ -226,7 +226,7 @@ export class AzurePronunciationService {
                     errorType: wordResult.errorType
                 };
 
-                // Add phoneme details if available
+                
                 if (wordResult.phonemes) {
                     word.phonemes = wordResult.phonemes.map((p: any) => ({
                         phoneme: p.phoneme,
@@ -234,7 +234,7 @@ export class AzurePronunciationService {
                     }));
                 }
 
-                // Add syllable details if available
+                
                 if (wordResult.syllables) {
                     word.syllables = wordResult.syllables.map((s: any) => ({
                         syllable: s.syllable,
@@ -253,7 +253,7 @@ export class AzurePronunciationService {
      * Generate appropriate feedback based on pronunciation assessment results
      */
     public generateFeedback(result: PronunciationAssessmentResult, referenceText: string): PronunciationFeedback {
-        // Handle errors
+        
         if (result.errorMessage) {
             return {
                 type: FeedbackType.NEEDS_IMPROVEMENT,
@@ -262,7 +262,7 @@ export class AzurePronunciationService {
             };
         }
 
-        // Get overall score (average of all scores)
+        
         const overallScore = (
             result.accuracyScore +
             result.fluencyScore +
@@ -270,10 +270,10 @@ export class AzurePronunciationService {
             result.pronunciationScore
         ) / 4;
 
-        // Find problematic words (below 70 accuracy)
+        
         const problemWords = result.words.filter(word => word.accuracyScore < 70);
 
-        // Perfect pronunciation
+        
         if (overallScore > 90 && problemWords.length === 0) {
             return {
                 type: FeedbackType.PERFECT,
@@ -287,7 +287,7 @@ export class AzurePronunciationService {
             };
         }
 
-        // Good pronunciation with minor issues
+        
         if (overallScore > 75) {
             return {
                 type: FeedbackType.GOOD,
@@ -305,7 +305,7 @@ export class AzurePronunciationService {
             };
         }
 
-        // Needs improvement
+        
         return {
             type: FeedbackType.NEEDS_IMPROVEMENT,
             message: "Keep practicing pronunciation",
@@ -328,8 +328,8 @@ export class AzurePronunciationService {
         text: string,
         feedbackType: 'vocabulary' | 'grammar' = 'vocabulary'
     ): PronunciationFeedback {
-        // This would typically involve NLP or AI analysis
-        // For now, providing a simplified implementation
+        
+        
 
         if (feedbackType === 'vocabulary') {
             return {
@@ -382,7 +382,7 @@ export class AzurePronunciationService {
     }
 }
 
-// Hook for using the pronunciation service
+
 export const useAzurePronunciation = (
     apiKey = import.meta.env.VITE_AZURE_SPEECH_KEY || '',
     region = import.meta.env.VITE_AZURE_SPEECH_REGION || 'eastus'

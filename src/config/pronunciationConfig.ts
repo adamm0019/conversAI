@@ -1,8 +1,3 @@
-/**
- * Configuration for pronunciation assessment
- */
-
-// Map of target languages to their respective locale codes for Azure Speech Services
 export const languageLocaleMap: Record<string, string> = {
     'english': 'en-US',
     'spanish': 'es-ES',
@@ -16,10 +11,10 @@ export const languageLocaleMap: Record<string, string> = {
     'russian': 'ru-RU',
     'arabic': 'ar-EG',
     'hindi': 'hi-IN',
-    // Add more languages as needed
+    
 };
 
-// Default reference texts for pronunciation practice
+
 export const defaultReferencePhrases: Record<string, string[]> = {
     'english': [
         'Hello, how are you today?',
@@ -49,10 +44,10 @@ export const defaultReferencePhrases: Record<string, string[]> = {
         'Könnten Sie bitte langsamer sprechen?',
         'Vielen Dank für Ihre Hilfe',
     ],
-    // Add more languages as needed
+    
 };
 
-// Feedback messages for perfect pronunciation by language
+
 export const perfectPronunciationMessages: Record<string, string[]> = {
     'english': [
         'Perfect pronunciation! 🎯',
@@ -72,10 +67,10 @@ export const perfectPronunciationMessages: Record<string, string[]> = {
         'Wow! Prononciation comme un natif!',
         'Parfait! Votre accent s\'améliore vraiment!',
     ],
-    // Add more languages as needed
+    
 };
 
-// Feedback messages for good pronunciation by language
+
 export const goodPronunciationMessages: Record<string, string[]> = {
     'english': [
         'Good pronunciation 👍',
@@ -95,10 +90,10 @@ export const goodPronunciationMessages: Record<string, string[]> = {
         'Votre prononciation s\'améliore bien',
         'Bon travail avec ces sons!',
     ],
-    // Add more languages as needed
+    
 };
 
-// Feedback messages for pronunciation that needs improvement
+
 export const improvementPronunciationMessages: Record<string, string[]> = {
     'english': [
         'Keep practicing pronunciation',
@@ -118,10 +113,10 @@ export const improvementPronunciationMessages: Record<string, string[]> = {
         'Avec plus de pratique, vous vous améliorerez',
         'Essayez de ralentir un peu',
     ],
-    // Add more languages as needed
+    
 };
 
-// Tips for pronunciation improvement by language
+
 export const pronunciationTips: Record<string, Record<string, string[]>> = {
     'english': {
         'th': [
@@ -151,10 +146,10 @@ export const pronunciationTips: Record<string, Record<string, string[]>> = {
             'Practice the "ñ" sound in words like "niño", "mañana", and "español"',
         ],
     },
-    // Add more languages as needed
+    
 };
 
-// Common problematic phonemes by native language
+
 export const problematicPhonemes: Record<string, Record<string, string[]>> = {
     'english': {
         'spanish': ['th', 'r', 'h', 'j', 'w', 'v'],
@@ -168,10 +163,10 @@ export const problematicPhonemes: Record<string, Record<string, string[]>> = {
         'chinese': ['r', 'rr', 'd', 't', 'b/v'],
         'japanese': ['r', 'rr', 'l', 'd', 'g'],
     },
-    // Add more languages as needed
+    
 };
 
-// Grammar tips by language
+
 export const grammarTips: Record<string, string[]> = {
     'english': [
         'Remember to use articles ("a", "an", "the") before nouns',
@@ -191,10 +186,10 @@ export const grammarTips: Record<string, string[]> = {
         'Don\'t forget to use articles before nouns',
         'Be careful with the placement of adverbs',
     ],
-    // Add more languages as needed
+    
 };
 
-// Vocabulary tips by language level
+
 export const vocabularyTips: Record<string, Record<string, string[]>> = {
     'english': {
         'beginner': [
@@ -213,16 +208,16 @@ export const vocabularyTips: Record<string, Record<string, string[]>> = {
             'Expand your academic or professional vocabulary',
         ],
     },
-    // Add more languages as needed
+    
 };
 
-// Export a function to get locale based on language
+
 export function getLocaleForLanguage(language: string): string {
     const normalizedLanguage = language.toLowerCase().trim();
     return languageLocaleMap[normalizedLanguage] || 'en-US';
 }
 
-// Export a function to get random reference phrase
+
 export function getRandomReferencePhrase(language: string): string {
     const normalizedLanguage = language.toLowerCase().trim();
     const phrases = defaultReferencePhrases[normalizedLanguage] || defaultReferencePhrases['english'];
@@ -230,7 +225,7 @@ export function getRandomReferencePhrase(language: string): string {
     return phrases[randomIndex];
 }
 
-// Export a function to get a random feedback message based on score and language
+
 export function getFeedbackMessage(
     score: number,
     language: string,
@@ -240,7 +235,7 @@ export function getFeedbackMessage(
 
     let messages: string[];
 
-    // Get appropriate message array
+    
     switch (type) {
         case 'perfect':
             messages = perfectPronunciationMessages[normalizedLanguage] || perfectPronunciationMessages['english'];
@@ -253,7 +248,7 @@ export function getFeedbackMessage(
             break;
     }
 
-    // Return a random message
+    
     const randomIndex = Math.floor(Math.random() * messages.length);
     return messages[randomIndex];
 }

@@ -11,7 +11,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useEffect } from 'react';
 import { useFirebaseChat } from './lib/firebase/firebaseConfig';
-import { ProfileProvider } from './contexts/ProfileContext'; // Import ProfileProvider
+import { ProfileProvider } from './contexts/ProfileContext'; 
 
 function App() {
   const { user, isLoaded } = useUser();
@@ -22,7 +22,7 @@ function App() {
       if (user) {
         const isInitialized = await initializeFirebase();
         if (isInitialized) {
-          // creating new profile if user is accessing for the first time
+          
           await createUserProfile({
             email: user.primaryEmailAddress?.emailAddress || '',
           });

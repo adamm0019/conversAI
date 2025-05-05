@@ -1,18 +1,18 @@
-// src/components/ChatSection/MessageBubble.tsx
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, ActionIcon, Tooltip, Collapse, Group, Badge } from '@mantine/core';
 import { IconCopy, IconCheck, IconVolume, IconPlayerPlay, IconPlayerPause, IconMicrophone } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { styles } from './styles'; // Verify path
-import { EnhancedConversationItem, ContentItem } from '../../types/conversation'; // Verify path
+import { styles } from './styles'; 
+import { EnhancedConversationItem, ContentItem } from '../../types/conversation'; 
 import { formatDistanceToNowStrict } from 'date-fns';
-import FeedbackMessage from '../FeedbackMessage/FeedbackMessage'; // Verify path
+import FeedbackMessage from '../FeedbackMessage/FeedbackMessage'; 
 
 interface MessageBubbleProps {
   item: EnhancedConversationItem;
 }
 
-// Framer Motion Variants
+
 const bubbleVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
@@ -24,7 +24,7 @@ const copyIconVariants = {
   exit: { opacity: 0, scale: 0.7, transition: { duration: 0.15 } }
 };
 const feedbackVariants = {
-  hidden: { opacity: 0, y: -10, height: 0 }, // Animate from top slightly
+  hidden: { opacity: 0, y: -10, height: 0 }, 
   visible: { opacity: 1, y: 0, height: 'auto', transition: { duration: 0.4, ease: 'easeOut' } },
   exit: { opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }
 };
@@ -66,15 +66,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
-    setIsPlayingAudio(!audio.paused); // Check initial state
+    setIsPlayingAudio(!audio.paused); 
     return () => {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [item.formatted?.file?.url, item.audioUrl]); // Depend on both possible audio URLs
+  }, [item.formatted?.file?.url, item.audioUrl]); 
 
-  const audioUrl = item.formatted?.file?.url || item.audioUrl; // Use TTS audio if available, otherwise user recording
+  const audioUrl = item.formatted?.file?.url || item.audioUrl; 
   const hasAudio = !!audioUrl;
   const showCopyButton = isAssistant && fullText.trim().length > 0 && item.status !== 'in_progress';
   const hasFeedback = !!item.feedback;
@@ -84,7 +84,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
     ...styles.messageBubbleBase,
     ...(isAssistant ? styles.messageBubbleAssistant : styles.messageBubbleUser),
     ...(isPronunciationReference ? {
-      backgroundColor: 'var(--mantine-color-blue-light)', // More distinct background
+      backgroundColor: 'var(--mantine-color-blue-light)', 
       border: `1px solid var(--mantine-color-blue-3)`,
       color: 'var(--mantine-color-blue-9)',
     } : {})
@@ -115,7 +115,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
           )}
           <Text style={textStyle} component="div">
             {isAssistant && item.status === 'in_progress' ? (
-                <> {getDisplayText(item)} <span style={{ /* ... typing cursor styles ... */ }}></span> </>
+                <> {getDisplayText(item)} <span style={{ }}></span> </>
             ) : ( getDisplayText(item) )}
           </Text>
           {item.translation && ( <Text size="xs" mt="xs" c="dimmed" fs="italic">{item.translation}</Text> )}
@@ -149,7 +149,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
                   variants={feedbackVariants} initial="hidden" animate="visible" exit="exit"
                   style={{ alignSelf: isAssistant ? 'flex-start' : 'flex-end', width: '100%', maxWidth: '95%', marginTop: '8px', marginLeft: isAssistant ? '8px' : 'auto', marginRight: isAssistant ? 'auto' : '8px' }}
               >
-                <FeedbackMessage feedback={item.feedback} />
+                {item.feedback && <FeedbackMessage feedback={item.feedback} />}
               </motion.div>
           )}
         </AnimatePresence>
@@ -164,19 +164,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
   );
 };
 
-// Helper Functions
+
 function getDisplayText(item: EnhancedConversationItem): string {
   if (item.referenceText && item.role === 'assistant') { return item.referenceText; }
-  if (item.formatted?.transcript) return item.formatted.transcript; // User transcription priority
-  if (item.formatted?.text) return item.formatted.text; // Assistant text priority
-  if (Array.isArray(item.content)) { // Fallback to content array
+  if (item.formatted?.transcript) return item.formatted.transcript; 
+  if (item.formatted?.text) return item.formatted.text; 
+  if (Array.isArray(item.content)) { 
     const textContent = item.content.find((c: ContentItem) => c?.type === 'text' || c?.type === 'input_text');
     if (textContent?.text) return textContent.text;
   }
-  if (typeof item.content === 'string') return item.content; // Fallback to simple string content
+  if (typeof item.content === 'string') return item.content; 
   if (item.role === 'assistant' && item.status === 'in_progress') return '(Thinking...)';
   if (item.role === 'user' && !item.formatted?.transcript) return '(Processing audio...)';
-  return ''; // Default empty string
+  return ''; 
 }
 function formatRelativeTimestamp(timestamp?: string | number | Date): string { try{const d=new Date(timestamp!);if(isNaN(d.getTime()))return ''; return formatDistanceToNowStrict(d,{addSuffix:true});}catch{return ''} }
 function formatFullTimestamp(timestamp?: string | number | Date): string { try{const d=new Date(timestamp!);if(isNaN(d.getTime()))return''; return d.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});}catch{return ''} }

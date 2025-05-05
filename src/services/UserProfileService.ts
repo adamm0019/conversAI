@@ -1,4 +1,4 @@
-// src/services/UserProfileService.ts
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
@@ -9,7 +9,7 @@ export interface UserLanguageProgress {
     language: string;
     level: string;
     progress: number;
-    lastPracticed: string; // ISO date string
+    lastPracticed: string; 
     streak: number;
     vocabulary: {
         learned: number;
@@ -30,16 +30,16 @@ export interface UserProfile {
     lastName: string;
     displayName: string;
     subscriptionTier: 'free' | 'standard' | 'premium';
-    joinedAt: string; // ISO date string
+    joinedAt: string; 
     targetLanguages: UserLanguageProgress[];
     preferences: {
         theme: 'light' | 'dark' | 'system';
         notifications: boolean;
         speechRecognition: boolean;
         aiVoice: string;
-        dailyGoal: number; // minutes
+        dailyGoal: number; 
     };
-    // Dynamic variables section
+    
     dynamicVariables: {
         user_name: string;
         subscription_tier: string;
@@ -49,7 +49,7 @@ export interface UserProfile {
         vocabulary_mastered: number;
         grammar_mastered: number;
         total_progress: number;
-        // Custom variables
+        
         custom_greeting?: string;
         learning_style?: string;
         feedback_style?: string;
@@ -110,7 +110,7 @@ export const useUserProfile = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Generate default profile for a new user
+    
     const createDefaultProfile = useCallback((): UserProfile => {
         if (!userId || !user) {
             throw new Error('User is not authenticated');
@@ -121,14 +121,14 @@ export const useUserProfile = () => {
             email: user.primaryEmailAddress?.emailAddress || '',
             firstName: user.firstName || '',
             lastName: user.lastName || '',
-            // First, spread DEFAULT_PROFILE
+            
             ...DEFAULT_PROFILE,
-            // Then override displayName so it takes precedence
+            
             displayName: user.firstName || 'Student',
         };
     }, [userId, user]);
 
-    // Load or create user profile
+    
     const loadProfile = useCallback(async () => {
         if (!userId) {
             setIsLoading(false);
@@ -144,12 +144,12 @@ export const useUserProfile = () => {
             const userDoc = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                // Profile exists, return it
+                
                 const profileData = userDoc.data() as UserProfile;
                 setProfile(profileData);
                 return profileData;
             } else {
-                // Create a new profile
+                
                 const newProfile = createDefaultProfile();
                 await setDoc(userDocRef, newProfile);
                 setProfile(newProfile);
@@ -165,7 +165,7 @@ export const useUserProfile = () => {
         }
     }, [userId, createDefaultProfile]);
 
-    // Subscribe to profile changes
+    
     useEffect(() => {
         if (!userId) return;
 
@@ -189,14 +189,14 @@ export const useUserProfile = () => {
         return () => unsubscribe();
     }, [userId]);
 
-    // Load profile on mount
+    
     useEffect(() => {
         if (userId && !profile) {
             loadProfile();
         }
     }, [userId, profile, loadProfile]);
 
-    // Update profile fields
+    
     const updateProfile = useCallback(async (
         updates: Partial<Omit<UserProfile, 'id'>>
     ) => {
@@ -217,7 +217,7 @@ export const useUserProfile = () => {
         }
     }, [userId, profile]);
 
-    // Update language progress
+    
     const updateLanguageProgress = useCallback(async (
         language: string,
         updates: Partial<UserLanguageProgress>
@@ -228,13 +228,13 @@ export const useUserProfile = () => {
         }
 
         try {
-            // Find the target language index
+            
             const langIndex = profile.targetLanguages.findIndex(
                 lang => lang.language.toLowerCase() === language.toLowerCase()
             );
 
             if (langIndex === -1) {
-                // Language not found, create a new one
+                
                 const newLang: UserLanguageProgress = {
                     language,
                     level: 'beginner',
@@ -249,12 +249,12 @@ export const useUserProfile = () => {
                 const updatedTargetLanguages = [...profile.targetLanguages, newLang];
                 await updateProfile({ targetLanguages: updatedTargetLanguages });
             } else {
-                // Update existing language
+                
                 const updatedLanguages = [...profile.targetLanguages];
                 updatedLanguages[langIndex] = {
                     ...updatedLanguages[langIndex],
                     ...updates,
-                    lastPracticed: new Date().toISOString() // Always update last practiced
+                    lastPracticed: new Date().toISOString() 
                 };
 
                 await updateProfile({ targetLanguages: updatedLanguages });
@@ -269,7 +269,7 @@ export const useUserProfile = () => {
         }
     }, [userId, profile, updateProfile]);
 
-    // Get language progress
+    
     const getLanguageProgress = useCallback((language: string): UserLanguageProgress | null => {
         if (!profile) return null;
 
@@ -280,11 +280,11 @@ export const useUserProfile = () => {
         return lang || null;
     }, [profile]);
 
-    // Get active language (most recently practiced)
+    
     const getActiveLanguage = useCallback((): UserLanguageProgress | null => {
         if (!profile || profile.targetLanguages.length === 0) return null;
 
-        // Sort by last practiced date (newest first)
+        
         const sortedLanguages = [...profile.targetLanguages].sort((a, b) => {
             return new Date(b.lastPracticed).getTime() - new Date(a.lastPracticed).getTime();
         });
@@ -292,7 +292,7 @@ export const useUserProfile = () => {
         return sortedLanguages[0];
     }, [profile]);
 
-    // Update dynamic variables
+    
     const updateDynamicVariables = useCallback(async (
         updates: Partial<UserProfile['dynamicVariables']>
     ): Promise<boolean> => {
@@ -304,7 +304,7 @@ export const useUserProfile = () => {
         try {
             const userDocRef = doc(db, 'userProfiles', userId);
 
-            // Merge with existing variables
+            
             const updatedVars = {
                 ...profile.dynamicVariables,
                 ...updates
@@ -325,14 +325,14 @@ export const useUserProfile = () => {
         }
     }, [userId, profile]);
 
-    // Sync language progress with dynamic variables
+    
     const syncLanguageProgress = useCallback(async (): Promise<boolean> => {
         if (!userId || !profile) return false;
 
         const activeLanguage = getActiveLanguage();
         if (!activeLanguage) return false;
 
-        // Create updates based on active language
+        
         const updates = {
             target_language: activeLanguage.language,
             language_level: activeLanguage.level,
@@ -345,10 +345,10 @@ export const useUserProfile = () => {
         return await updateDynamicVariables(updates);
     }, [userId, profile, getActiveLanguage, updateDynamicVariables]);
 
-    // Generate dynamic variables for 11labs with proper typing
+    
     const getDynamicVariables = useCallback((): DynamicVariables => {
         if (!profile) {
-            // Return default values if profile is not loaded
+            
             return sanitizeDynamicVariables({
                 user_name: 'there',
                 subscription_tier: 'free',
@@ -361,12 +361,12 @@ export const useUserProfile = () => {
             });
         }
 
-        // Use the stored dynamic variables directly
+        
         const variables = {
             ...profile.dynamicVariables
         };
 
-        // If active language has changed, update relevant variables
+        
         const activeLanguage = getActiveLanguage();
         if (activeLanguage) {
             variables.target_language = activeLanguage.language;
@@ -381,7 +381,7 @@ export const useUserProfile = () => {
 
         variables.subscription_tier = profile.subscriptionTier;
 
-        // Sanitize to ensure no undefined values
+        
         return sanitizeDynamicVariables(variables);
     }, [profile, getActiveLanguage]);
 

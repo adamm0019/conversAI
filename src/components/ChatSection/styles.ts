@@ -1,6 +1,6 @@
 import {keyframes} from '@emotion/react';
 
-// --- Keyframes ---
+
 export const slideIn = keyframes`from {
                                      opacity: 0;
                                      transform: translateY(20px);
@@ -46,13 +46,13 @@ export const pulseAnimation = keyframes`
     }
 `;
 
-// --- Main Style Object ---
+
 export const styles = {
-    // --- App Container ---
+    
     container: {
         display: 'flex',
         flexDirection: 'column' as const,
-        height: '100%', // Occupy parent height
+        height: '100%', 
         width: '100%',
         position: 'relative' as const,
         overflow: 'hidden',
@@ -64,12 +64,12 @@ export const styles = {
         backgroundAttachment: 'fixed',
     },
 
-    // --- Chat Area ---
+    
     chatArea: {
         flex: 1,
         overflowY: 'auto' as const,
         padding: '20px',
-        paddingBottom: '150px', // Increased padding for input area
+        paddingBottom: '150px', 
         scrollBehavior: 'smooth' as const,
         '&::-webkit-scrollbar': {width: '6px'},
         '&::-webkit-scrollbar-track': {background: 'transparent'},
@@ -86,7 +86,7 @@ export const styles = {
         gap: '8px',
     },
 
-    // --- Message Bubbles ---
+    
     messageBubbleWrapper: {
         display: 'flex',
         flexDirection: 'column' as const,
@@ -136,13 +136,13 @@ export const styles = {
     },
     messageAudio: {marginTop: '8px', position: 'relative'},
 
-    // --- Thinking Animation Container ---
+    
     thinkingAnimationContainer: {
         display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
         padding: '10px 16px', marginLeft: '10px',
     },
 
-    // --- Input Area (MODERNIZED) ---
+    
     inputContainer: {
         position: 'relative', zIndex: 100, paddingTop: '40px', paddingBottom: '24px',
         paddingLeft: 'var(--mantine-spacing-md)', paddingRight: 'var(--mantine-spacing-md)',
@@ -178,7 +178,7 @@ export const styles = {
         display: 'flex', alignItems: 'center', gap: '4px', paddingBottom: '4px',
     },
 
-    // --- Empty State / Greeting ---
+    
     emptyStateContainer: {
         flex: 1,
         display: 'flex',
@@ -204,7 +204,7 @@ export const styles = {
     emptyStateGreeting: {fontSize: '22px', fontWeight: 600, color: 'var(--mantine-color-gray-1)', marginBottom: '8px'},
     emptyStatePrompt: {fontSize: '15px', color: 'var(--mantine-color-gray-4)', maxWidth: '450px', lineHeight: 1.6},
 
-    // --- Chat Shelf Styles ---
+    
     shelfTrigger: {
         position: 'fixed' as const, left: '0px', top: '60px', bottom: '0px', width: '32px',
         zIndex: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',

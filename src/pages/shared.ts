@@ -1,5 +1,3 @@
-// shared styles
-
 import { createStyles, rem } from '@mantine/styles';
 
 export const useSharedStyles = createStyles((theme) => ({

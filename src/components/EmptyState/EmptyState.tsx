@@ -1,8 +1,8 @@
 import React from 'react';
 import { Center, Text, Stack } from '@mantine/core';
 import { motion } from 'framer-motion';
-import { IconSparkles } from '@tabler/icons-react'; // Changed icon
-import { styles } from '../ChatSection/styles.ts'; // Assuming styles are in the same folder or adjust path
+import { IconSparkles } from '@tabler/icons-react'; 
+import { styles } from '../ChatSection/styles.ts'; 
 
 interface EmptyStateProps {
     userName?: string;

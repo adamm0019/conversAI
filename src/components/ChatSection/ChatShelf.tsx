@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useCallback, useMemo} from 'react'; // Added useMemo
+import React, {useState, useEffect, useRef, useCallback, useMemo} from 'react'; 
 import {
     Box, Text, Stack, Group, ActionIcon, Modal, Button, TextInput,
     ScrollArea, Tooltip, useMantineTheme, LoadingOverlay
@@ -8,14 +8,14 @@ import {
     IconLayoutSidebarLeftExpand, IconMessageCircle, IconEdit,
     IconPlus, IconTrash, IconX
 } from '@tabler/icons-react';
-import {styles} from './styles'; // Verify path
-import {useFirebaseChat, Chat} from '../../lib/firebase/firebaseConfig'; // Verify path
+import {styles} from './styles'; 
+import {useFirebaseChat, Chat} from '../../lib/firebase/firebaseConfig'; 
 import {formatDistanceToNow, isToday, isYesterday, format} from 'date-fns';
 import {Timestamp} from 'firebase/firestore';
 import {useDebouncedState} from '@mantine/hooks';
 import {notifications} from '@mantine/notifications';
 
-// --- Component Props ---
+
 interface ChatShelfProps {
     activeChat: string;
     onSelectChat: (id: string) => void;
@@ -27,7 +27,7 @@ interface GroupedChats {
     [key: string]: Chat[];
 }
 
-// --- Motion Variants (Outside component) ---
+
 const shelfVariants = {closed: {x: '-100%'}, open: {x: 0}};
 const shelfTransition = {type: 'spring', stiffness: 400, damping: 40, mass: 0.8};
 const chatItemVariants = {
@@ -36,7 +36,7 @@ const chatItemVariants = {
     exit: {opacity: 0, x: -15, transition: {duration: 0.15, ease: 'easeIn'}}
 };
 
-// --- Helper: Grouping Logic (Outside component) ---
+
 const groupChatsByDateLogic = (chatsToGroup: Chat[]): GroupedChats => {
     const groups: GroupedChats = {};
     const now = new Date();
@@ -48,7 +48,7 @@ const groupChatsByDateLogic = (chatsToGroup: Chat[]): GroupedChats => {
             if (isNaN(date.getTime())) throw new Error("Invalid date");
         } catch (e) {
             return;
-        } // Skip invalid dates
+        } 
 
         let groupKey: string;
         if (isToday(date)) {
@@ -67,7 +67,7 @@ const groupChatsByDateLogic = (chatsToGroup: Chat[]): GroupedChats => {
         groups[groupKey].push(chat);
     });
 
-    // Sort groups chronologically
+    
     const groupOrder = ['Today', 'Yesterday', 'Previous 7 Days'];
     const orderedGroupKeys = Object.keys(groups).sort((a, b) => {
         const indexA = groupOrder.indexOf(a);
@@ -85,11 +85,11 @@ const groupChatsByDateLogic = (chatsToGroup: Chat[]): GroupedChats => {
     const orderedGroups: GroupedChats = {};
     orderedGroupKeys.forEach(key => {
         orderedGroups[key] = groups[key];
-    }); // Chats within groups are already sorted by query/initial sort
+    }); 
     return orderedGroups;
 };
 
-// --- Helper: Timestamp Formatting (Outside component) ---
+
 const formatTimestamp = (timestamp: Timestamp | Date | number | string | null): string => {
     if (!timestamp) return '';
     try {
@@ -117,22 +117,22 @@ const ChatItem: React.FC<ChatItemProps> = React.memo(({
                                                           onSelectChat,
                                                           onRenameClick,
                                                           onDeleteClick,
-                                                          // onCloseClick
+                                                          
                                                       }) => {
-    // Use styles directly from the imported object
+    
     const iconStyle = isActive ? {...styles.chatTabIcon, ...styles.chatTabIconActive} : styles.chatTabIcon;
-    const hoverBg = isActive ? undefined : 'rgba(var(--mantine-color-dark-5-rgb), 0.4)'; // Example hover
+    const hoverBg = isActive ? undefined : 'rgba(var(--mantine-color-dark-5-rgb), 0.4)'; 
 
     return (
         <motion.div
-            key={chat.id} // Key is crucial for AnimatePresence and list updates
+            key={chat.id} 
             variants={chatItemVariants}
             initial="initial"
             animate="animate"
             exit="exit"
-            layout="position" // Animate position changes smoothly
+            layout="position" 
             style={styles.chatTab}
-            data-active={isActive || undefined} // For CSS selector styling
+            data-active={isActive || undefined} 
             onClick={() => onSelectChat(chat.id)}
             whileHover={{backgroundColor: hoverBg}}
             title={`Chat: ${chat.title}\nLast message: ${chat.lastMessage || chat.subtitle || '...'}`}
@@ -169,21 +169,21 @@ const ChatItem: React.FC<ChatItemProps> = React.memo(({
         </motion.div>
     );
 });
-ChatItem.displayName = 'ChatItem'; // Good practice for memoized components
+ChatItem.displayName = 'ChatItem'; 
 
-// ========================================================================
-//          MAIN CHAT SHELF COMPONENT
-// ========================================================================
-export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main component in React.memo
+
+
+
+export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ 
                                                                    activeChat,
                                                                    onSelectChat,
                                                                    onCloseChat,
                                                                    onNewChat
                                                                }) => {
-    // State
+    
     const [isOpen, setIsOpen] = useDebouncedState(false, 100);
     const [isInteracting, setIsInteracting] = useState(false);
-    const [rawChats, setRawChats] = useState<Chat[]>([]); // Store raw data from Firebase
+    const [rawChats, setRawChats] = useState<Chat[]>([]); 
     const [isLoading, setIsLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -191,39 +191,39 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
     const [chatToRename, setChatToRename] = useState<Chat | null>(null);
     const [newChatTitle, setNewChatTitle] = useState('');
 
-    // Refs
+    
     const shelfRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLDivElement>(null);
     const interactionTimer = useRef<NodeJS.Timeout | null>(null);
 
-    // Hooks
+    
     const theme = useMantineTheme();
     const {subscribeToChats, deleteChat, renameChat} = useFirebaseChat();
 
-    // --- Data Fetching ---
+    
     useEffect(() => {
         setIsLoading(true);
         const unsubscribe = subscribeToChats((updatedChats) => {
-            // Sort chats immediately upon receiving updates
+            
             const sortedChats = updatedChats.sort((a, b) => {
                 const timeA = a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : new Date(a.timestamp || 0).getTime();
                 const timeB = b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : new Date(b.timestamp || 0).getTime();
-                return timeB - timeA; // Most recent first
+                return timeB - timeA; 
             });
-            setRawChats(sortedChats); // Update raw chats state
+            setRawChats(sortedChats); 
             setIsLoading(false);
         });
         return () => unsubscribe();
     }, [subscribeToChats]);
 
-    // --- Memoized Grouping ---
+    
     const groupedChats = useMemo(() => {
-        // console.log("ChatShelf: Recalculating grouped chats..."); // Debug when grouping runs
+        
         const visibleChats = rawChats.filter(chat => !chat.isArchived);
         return groupChatsByDateLogic(visibleChats);
-    }, [rawChats]); // Only recalculate when rawChats changes
+    }, [rawChats]); 
 
-    // --- Hover Logic ---
+    
     const handleMouseEnter = useCallback(() => {
         if (interactionTimer.current) clearTimeout(interactionTimer.current);
         setIsOpen(true);
@@ -237,14 +237,14 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
         }, 200);
     }, [setIsOpen, isInteracting]);
 
-    useEffect(() => { // Cleanup timer
+    useEffect(() => { 
         return () => {
             if (interactionTimer.current) clearTimeout(interactionTimer.current);
         };
     }, []);
 
-    // --- Memoized Action Handlers ---
-    // These handlers are passed to ChatItem, memoizing helps prevent ChatItem re-renders
+    
+    
     const handleDeleteClick = useCallback((chat: Chat, e: React.MouseEvent) => {
         e.stopPropagation();
         setIsInteracting(true);
@@ -259,17 +259,17 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
         setRenameModalOpen(true);
     }, []);
 
-    // Confirm handlers don't need useCallback if not passed down directly
+    
     const handleConfirmDelete = async () => {
         if (!chatToDelete) return;
-        setIsLoading(true); // Indicate activity
+        setIsLoading(true); 
         try {
             await deleteChat(chatToDelete);
             notifications.show({message: 'Chat deleted', color: 'green', autoClose: 2000});
             if (activeChat === chatToDelete) {
                 onCloseChat(chatToDelete);
             }
-        } catch (error: any) { /* ... error handling ... */
+        } catch (error: any) {
         } finally {
             setIsLoading(false);
             closeDeleteModal();
@@ -281,14 +281,14 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
         try {
             await renameChat(chatToRename.id, newChatTitle.trim());
             notifications.show({message: 'Chat renamed', color: 'green', autoClose: 2000});
-        } catch (error: any) { /* ... error handling ... */
+        } catch (error: any) {
         } finally {
             setIsLoading(false);
             closeRenameModal();
         }
     };
 
-    // Modal close handlers
+    
     const closeDeleteModal = () => {
         setDeleteModalOpen(false);
         setChatToDelete(null);
@@ -331,13 +331,13 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
                                     <Text style={styles.dateDividerChat}>{group}</Text>
                                     {groupChats.map((chat) => (
                                         <ChatItem
-                                            key={chat.id} // Key must be here for AnimatePresence direct child
+                                            key={chat.id} 
                                             chat={chat}
                                             isActive={activeChat === chat.id}
-                                            onSelectChat={onSelectChat} // Passed from parent (should be stable)
-                                            onRenameClick={handleRenameClick} // Use memoized handler
-                                            onDeleteClick={handleDeleteClick} // Use memoized handler
-                                            // onCloseClick={handleCloseClick} // Pass if needed
+                                            onSelectChat={onSelectChat} 
+                                            onRenameClick={handleRenameClick} 
+                                            onDeleteClick={handleDeleteClick} 
+                                            
                                         />
                                     ))}
                                 </motion.div>
@@ -351,7 +351,7 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
 
             {/* Modals */}
             <Modal opened={renameModalOpen} onClose={closeRenameModal} title="Rename Chat" centered
-                   size="sm" /* ... other props ... */>
+                   size="sm">
                 <TextInput value={newChatTitle} onChange={(event) => setNewChatTitle(event.currentTarget.value)}
                            placeholder="Enter new chat name" data-autofocus
                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmRename()}/>
@@ -372,7 +372,6 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({ // Wrap main co
             </Modal>
         </>
     );
-}); // End of React.memo for ChatShelf
-ChatShelf.displayName = 'ChatShelf'; // Good practice
+}); 
+ChatShelf.displayName = 'ChatShelf'; 
 
-// export default ChatShelf; // Uncomment if needed

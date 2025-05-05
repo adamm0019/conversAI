@@ -1,5 +1,3 @@
-// main dashboard page to hold language learning games
-
 import React, { useState } from 'react';
 import {
   AppShell,
@@ -192,7 +190,7 @@ export const GameCenter: React.FC = () => {
             selectedMode="tutor"
             onModeChange={handleModeChange}
             onResetAPIKey={() => console.log('Reset API key')}
-            showSettings={true} // Changed to true to display settings icon
+            showSettings={true} 
         />
 
         <AppShell.Main>

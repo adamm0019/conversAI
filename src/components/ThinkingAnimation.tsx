@@ -16,7 +16,7 @@ export const ThinkingAnimation: React.FC<ThinkingAnimationProps> = ({
                                                                                 style,
                                                                                 variant = 'dots'
                                                                             }) => {
-    // Dots animation
+    
     const DotsAnimation = () => (
         <Group gap={8} ml={4}>
             {Array.from({ length: dotsCount }).map((_, i) => (
@@ -48,7 +48,7 @@ export const ThinkingAnimation: React.FC<ThinkingAnimationProps> = ({
         </Group>
     );
 
-    // Pulse animation
+    
     const PulseAnimation = () => (
         <Box ml={8} style={{ position: 'relative', width: 28, height: 24 }}>
             <AnimatePresence>
@@ -105,7 +105,7 @@ export const ThinkingAnimation: React.FC<ThinkingAnimationProps> = ({
         </Box>
     );
 
-    // Wave animation
+    
     const WaveAnimation = () => (
         <Group gap={4} ml={8} mt={2}>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -131,7 +131,7 @@ export const ThinkingAnimation: React.FC<ThinkingAnimationProps> = ({
         </Group>
     );
 
-    // Rings animation
+    
     const RingsAnimation = () => (
         <Box ml={8} style={{ position: 'relative', width: 28, height: 24 }}>
             <motion.div
@@ -181,7 +181,7 @@ export const ThinkingAnimation: React.FC<ThinkingAnimationProps> = ({
         </Box>
     );
 
-    // Select animation variant
+    
     const renderAnimation = () => {
         switch (variant) {
             case 'pulse':

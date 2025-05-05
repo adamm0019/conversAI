@@ -32,7 +32,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
 
     const defaultColor = color || theme.colors.primary[6];
 
-    // Initialize particles
+    
     useEffect(() => {
         if (visualizerStyle === 'particles') {
             const canvas = canvasRef.current;
@@ -41,7 +41,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            // Create initial particles
+            
             particlesRef.current = Array.from({ length: 50 }).map(() => ({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
@@ -56,22 +56,22 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         }
     }, [visualizerStyle, defaultColor]);
 
-    // Draw particles
+    
     const drawParticles = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, audioLevel: number = 0) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Add movement and glow based on audio level
+        
         const baseSpeed = 0.5;
         const intensity = isActive ? Math.min(0.2 + audioLevel * 2, 1) : 0.2;
         const glowSize = isActive ? 2 + audioLevel * 10 : 2;
 
-        // Update and draw each particle
+        
         particlesRef.current.forEach(particle => {
-            // Update position with added movement based on audio level
+            
             particle.x += particle.velocity.x * (baseSpeed + audioLevel * 3);
             particle.y += particle.velocity.y * (baseSpeed + audioLevel * 3);
 
-            // Bounce off edges
+            
             if (particle.x < 0 || particle.x > canvas.width) {
                 particle.velocity.x *= -1;
             }
@@ -79,11 +79,11 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
                 particle.velocity.y *= -1;
             }
 
-            // Draw particle with glow
+            
             ctx.beginPath();
             ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
 
-            // Create gradient for glow effect
+            
             const gradient = ctx.createRadialGradient(
                 particle.x, particle.y, 0,
                 particle.x, particle.y, particle.radius * glowSize
@@ -94,14 +94,14 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
             ctx.fillStyle = gradient;
             ctx.fill();
 
-            // Draw the actual particle
+            
             ctx.beginPath();
             ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
             ctx.fillStyle = `rgba(100, 181, 246, ${intensity * 0.8})`;
             ctx.fill();
         });
 
-        // Connect nearby particles with lines
+        
         if (isActive) {
             const distance = 30 + audioLevel * 30;
             ctx.strokeStyle = `rgba(100, 181, 246, ${intensity * 0.2})`;
@@ -126,7 +126,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         }
     };
 
-    // Draw bars visualizer
+    
     const drawBars = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, audioLevel: number = 0) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -136,15 +136,15 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         const maxBarHeight = canvas.height * 0.8;
 
         for (let i = 0; i < bars; i++) {
-            // Generate a bar height that looks more random but still reactive to audio level
+            
             let heightFactor;
             if (isActive) {
-                // When active, make the heights more dynamic based on position and audio level
+                
                 const positionFactor = Math.sin((i / bars) * Math.PI);
                 const baseFactor = 0.1 + Math.random() * 0.2;
                 heightFactor = baseFactor + (positionFactor * audioLevel * 0.7);
             } else {
-                // When inactive, just have a low baseline animation
+                
                 const time = Date.now() / 1000;
                 const phase = (i / bars) * Math.PI * 2;
                 heightFactor = 0.1 + Math.sin(time * 2 + phase) * 0.05;
@@ -154,14 +154,14 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
             const x = i * (barWidth + barSpacing);
             const y = canvas.height - barHeight;
 
-            // Create gradient for each bar
+            
             const gradient = ctx.createLinearGradient(x, y, x, canvas.height);
             gradient.addColorStop(0, `rgba(100, 181, 246, ${isActive ? 0.8 : 0.3})`);
             gradient.addColorStop(1, `rgba(33, 150, 243, ${isActive ? 0.4 : 0.1})`);
 
             ctx.fillStyle = gradient;
 
-            // Draw bar with rounded top
+            
             ctx.beginPath();
             ctx.moveTo(x, canvas.height);
             ctx.lineTo(x, y + barWidth/2);
@@ -169,7 +169,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
             ctx.lineTo(x + barWidth, canvas.height);
             ctx.fill();
 
-            // Add glow effect for active state
+            
             if (isActive && audioLevel > 0.2) {
                 ctx.shadowColor = 'rgba(33, 150, 243, 0.5)';
                 ctx.shadowBlur = 10 * audioLevel;
@@ -179,19 +179,19 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         }
     };
 
-    // Draw wave visualizer
+    
     const drawWave = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, audioLevel: number = 0) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const centerY = canvas.height / 2;
         const amplitude = isActive ? (canvas.height / 4) * audioLevel : canvas.height / 16;
 
-        // Create wave path
+        
         ctx.beginPath();
         ctx.moveTo(0, centerY);
 
         for (let x = 0; x < canvas.width; x++) {
-            // Calculate wave effect
+            
             const time = Date.now() / 1000;
             const frequency = 0.02;
             const baseWave = Math.sin(x * frequency + time * 2) * amplitude;
@@ -203,12 +203,12 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
             ctx.lineTo(x, y);
         }
 
-        // Complete the path to create a closed shape
+        
         ctx.lineTo(canvas.width, canvas.height);
         ctx.lineTo(0, canvas.height);
         ctx.closePath();
 
-        // Fill with gradient
+        
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, `rgba(100, 181, 246, ${isActive ? 0.1 : 0.05})`);
         gradient.addColorStop(0.5, `rgba(33, 150, 243, ${isActive ? 0.3 : 0.1})`);
@@ -217,7 +217,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // Draw the wave line
+        
         ctx.beginPath();
         ctx.moveTo(0, centerY);
 
@@ -236,7 +236,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         ctx.strokeStyle = `rgba(33, 150, 243, ${isActive ? 0.8 : 0.3})`;
         ctx.lineWidth = 2;
 
-        // Add glow for active state
+        
         if (isActive) {
             ctx.shadowColor = 'rgba(33, 150, 243, 0.5)';
             ctx.shadowBlur = 5;
@@ -246,7 +246,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         ctx.shadowBlur = 0;
     };
 
-    // Animation loop
+    
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -254,7 +254,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Ensure canvas has correct dimensions
+        
         const resizeCanvas = () => {
             const { width, height } = canvas.getBoundingClientRect();
 
@@ -266,11 +266,11 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
 
         resizeCanvas();
 
-        // Mock audio level for demo (would be replaced by actual audio analysis)
+        
         const getMockAudioLevel = () => {
             if (!isActive) return 0;
 
-            // Generate a value that oscillates between 0.1 and 0.8
+            
             const time = Date.now() / 1000;
             const baseLevel = 0.2 + Math.sin(time * 2) * 0.15;
             const randomFactor = Math.random() * 0.1;
@@ -278,7 +278,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
             return baseLevel + randomFactor;
         };
 
-        // Animation frame
+        
         const animate = () => {
             const audioLevel = getMockAudioLevel();
 
@@ -300,7 +300,7 @@ export const AudioVisualiser: React.FC<AudioVisualizerProps> = ({
 
         animate();
 
-        // Cleanup
+        
         return () => {
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);

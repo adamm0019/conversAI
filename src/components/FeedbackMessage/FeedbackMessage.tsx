@@ -22,7 +22,7 @@ interface FeedbackMessageProps {
     style?: React.CSSProperties;
 }
 
-// Animation variants
+
 const containerVariants = {
     hidden: { opacity: 0, y: 20, scale: 0.95 },
     visible: {
@@ -55,7 +55,7 @@ const itemVariants = {
 };
 
 const FeedbackMessage: React.FC<FeedbackMessageProps> = ({ feedback, style }) => {
-    // Helper to get the appropriate feedback color based on type
+    
     const getFeedbackColor = (type: FeedbackType): string => {
         switch(type) {
             case FeedbackType.PERFECT:
@@ -85,7 +85,7 @@ const FeedbackMessage: React.FC<FeedbackMessageProps> = ({ feedback, style }) =>
         }
     };
 
-    // Helper to get the appropriate icon
+    
     const getFeedbackIcon = (type: FeedbackType) => {
         switch(type) {
             case FeedbackType.PERFECT:
@@ -115,7 +115,7 @@ const FeedbackMessage: React.FC<FeedbackMessageProps> = ({ feedback, style }) =>
         }
     };
 
-    // Get color based on feedback type
+    
     const color = getFeedbackColor(feedback.type);
 
     return (

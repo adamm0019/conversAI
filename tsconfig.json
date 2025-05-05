@@ -20,6 +20,6 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"],
+  "include": ["src", "__tests__/unit/components/Home.test.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
