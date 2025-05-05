@@ -1,8 +1,6 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase/firebaseConfig';
+import { supabase } from '../lib/supabase/supabaseClient';
 import { DynamicVariables, sanitizeDynamicVariables } from '../types/dynamicVariables';
 
 export interface UserLanguageProgress {
@@ -140,25 +138,79 @@ export const useUserProfile = () => {
             setIsLoading(true);
             setError(null);
 
-            const userDocRef = doc(db, 'userProfiles', userId);
-            const userDoc = await getDoc(userDocRef);
+            // Try to get user profile from Supabase
+            const { data: profileData, error: fetchError } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
 
-            if (userDoc.exists()) {
-                
-                const profileData = userDoc.data() as UserProfile;
-                setProfile(profileData);
-                return profileData;
-            } else {
-                
-                const newProfile = createDefaultProfile();
-                await setDoc(userDocRef, newProfile);
-                setProfile(newProfile);
-                return newProfile;
+            if (fetchError) {
+                // If the profile doesn't exist, create a new one
+                if (fetchError.code === 'PGRST116') {
+                    const newProfile = createDefaultProfile();
+                    
+                    const { error: insertError } = await supabase
+                        .from('user_profiles')
+                        .insert({
+                            user_id: userId,
+                            email: newProfile.email,
+                            first_name: newProfile.firstName,
+                            last_name: newProfile.lastName,
+                            display_name: newProfile.displayName,
+                            subscription_tier: newProfile.subscriptionTier,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            preferences: newProfile.preferences,
+                            target_languages: newProfile.targetLanguages,
+                            dynamic_variables: newProfile.dynamicVariables
+                        });
+                    
+                    if (insertError) {
+                        throw insertError;
+                    }
+                    
+                    setProfile(newProfile);
+                    return newProfile;
+                } else {
+                    throw fetchError;
+                }
             }
+            
+            // Map the Supabase data format to our UserProfile interface
+            const userProfile: UserProfile = {
+                id: userId,
+                email: profileData.email || '',
+                firstName: profileData.first_name || '',
+                lastName: profileData.last_name || '',
+                displayName: profileData.display_name || '',
+                subscriptionTier: profileData.subscription_tier || 'free',
+                joinedAt: profileData.created_at,
+                targetLanguages: profileData.target_languages || DEFAULT_PROFILE.targetLanguages,
+                preferences: profileData.preferences || DEFAULT_PROFILE.preferences,
+                dynamicVariables: profileData.dynamic_variables || DEFAULT_PROFILE.dynamicVariables
+            };
+            
+            setProfile(userProfile);
+            return userProfile;
+            
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to load profile';
             setError(errorMessage);
             console.error('Error loading user profile:', error);
+            
+            // Fallback to localStorage
+            try {
+                const localStorageProfile = localStorage.getItem(`userProfile-${userId}`);
+                if (localStorageProfile) {
+                    const parsedProfile = JSON.parse(localStorageProfile) as UserProfile;
+                    setProfile(parsedProfile);
+                    return parsedProfile;
+                }
+            } catch (e) {
+                console.error('Failed to load profile from localStorage:', e);
+            }
+            
             return null;
         } finally {
             setIsLoading(false);
@@ -169,32 +221,46 @@ export const useUserProfile = () => {
     useEffect(() => {
         if (!userId) return;
 
-        const userDocRef = doc(db, 'userProfiles', userId);
-
-        const unsubscribe = onSnapshot(
-            userDocRef,
-            (docSnap) => {
-                if (docSnap.exists()) {
-                    setProfile(docSnap.data() as UserProfile);
+        loadProfile();
+        
+        // Set up real-time subscription to profile changes
+        const subscription = supabase
+            .channel('user_profile_changes')
+            .on('postgres_changes', 
+                { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'user_profiles',
+                    filter: `user_id=eq.${userId}`
+                }, 
+                (payload) => {
+                    if (payload.new) {
+                        const profileData = payload.new;
+                        
+                        // Map to UserProfile format
+                        const userProfile: UserProfile = {
+                            id: userId,
+                            email: profileData.email || '',
+                            firstName: profileData.first_name || '',
+                            lastName: profileData.last_name || '',
+                            displayName: profileData.display_name || '',
+                            subscriptionTier: profileData.subscription_tier || 'free',
+                            joinedAt: profileData.created_at,
+                            targetLanguages: profileData.target_languages || DEFAULT_PROFILE.targetLanguages,
+                            preferences: profileData.preferences || DEFAULT_PROFILE.preferences,
+                            dynamicVariables: profileData.dynamic_variables || DEFAULT_PROFILE.dynamicVariables
+                        };
+                        
+                        setProfile(userProfile);
+                    }
                 }
-                setIsLoading(false);
-            },
-            (error) => {
-                console.error('Error in profile subscription:', error);
-                setError('Failed to subscribe to profile updates');
-                setIsLoading(false);
-            }
-        );
+            )
+            .subscribe();
 
-        return () => unsubscribe();
-    }, [userId]);
-
-    
-    useEffect(() => {
-        if (userId && !profile) {
-            loadProfile();
-        }
-    }, [userId, profile, loadProfile]);
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [userId, loadProfile]);
 
     
     const updateProfile = useCallback(async (
@@ -206,8 +272,33 @@ export const useUserProfile = () => {
         }
 
         try {
-            const userDocRef = doc(db, 'userProfiles', userId);
-            await updateDoc(userDocRef, updates);
+            // Transform to Supabase format
+            const supabaseUpdates: Record<string, any> = {};
+            
+            if (updates.email) supabaseUpdates.email = updates.email;
+            if (updates.firstName) supabaseUpdates.first_name = updates.firstName;
+            if (updates.lastName) supabaseUpdates.last_name = updates.lastName;
+            if (updates.displayName) supabaseUpdates.display_name = updates.displayName;
+            if (updates.subscriptionTier) supabaseUpdates.subscription_tier = updates.subscriptionTier;
+            if (updates.preferences) supabaseUpdates.preferences = updates.preferences;
+            if (updates.targetLanguages) supabaseUpdates.target_languages = updates.targetLanguages;
+            if (updates.dynamicVariables) supabaseUpdates.dynamic_variables = updates.dynamicVariables;
+            
+            supabaseUpdates.updated_at = new Date().toISOString();
+            
+            const { error } = await supabase
+                .from('user_profiles')
+                .update(supabaseUpdates)
+                .eq('user_id', userId);
+                
+            if (error) {
+                throw error;
+            }
+            
+            // Also update localStorage as fallback
+            const updatedProfile = { ...profile, ...updates };
+            localStorage.setItem(`userProfile-${userId}`, JSON.stringify(updatedProfile));
+            
             return true;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
@@ -228,13 +319,15 @@ export const useUserProfile = () => {
         }
 
         try {
-            
+            // Find the language in the current target languages
             const langIndex = profile.targetLanguages.findIndex(
                 lang => lang.language.toLowerCase() === language.toLowerCase()
             );
 
+            let updatedTargetLanguages;
+            
             if (langIndex === -1) {
-                
+                // Create a new language entry
                 const newLang: UserLanguageProgress = {
                     language,
                     level: 'beginner',
@@ -246,21 +339,18 @@ export const useUserProfile = () => {
                     ...updates
                 };
 
-                const updatedTargetLanguages = [...profile.targetLanguages, newLang];
-                await updateProfile({ targetLanguages: updatedTargetLanguages });
+                updatedTargetLanguages = [...profile.targetLanguages, newLang];
             } else {
-                
-                const updatedLanguages = [...profile.targetLanguages];
-                updatedLanguages[langIndex] = {
-                    ...updatedLanguages[langIndex],
-                    ...updates,
-                    lastPracticed: new Date().toISOString() 
+                // Update existing language entry
+                updatedTargetLanguages = [...profile.targetLanguages];
+                updatedTargetLanguages[langIndex] = {
+                    ...updatedTargetLanguages[langIndex],
+                    ...updates
                 };
-
-                await updateProfile({ targetLanguages: updatedLanguages });
             }
-
-            return true;
+            
+            return await updateProfile({ targetLanguages: updatedTargetLanguages });
+            
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to update language progress';
             setError(errorMessage);
@@ -270,121 +360,28 @@ export const useUserProfile = () => {
     }, [userId, profile, updateProfile]);
 
     
-    const getLanguageProgress = useCallback((language: string): UserLanguageProgress | null => {
-        if (!profile) return null;
-
-        const lang = profile.targetLanguages.find(
-            l => l.language.toLowerCase() === language.toLowerCase()
-        );
-
-        return lang || null;
-    }, [profile]);
-
-    
-    const getActiveLanguage = useCallback((): UserLanguageProgress | null => {
-        if (!profile || profile.targetLanguages.length === 0) return null;
-
-        
-        const sortedLanguages = [...profile.targetLanguages].sort((a, b) => {
-            return new Date(b.lastPracticed).getTime() - new Date(a.lastPracticed).getTime();
-        });
-
-        return sortedLanguages[0];
-    }, [profile]);
-
-    
     const updateDynamicVariables = useCallback(async (
-        updates: Partial<UserProfile['dynamicVariables']>
-    ): Promise<boolean> => {
-        if (!userId || !profile) {
-            setError('User is not authenticated or profile not loaded');
-            return false;
-        }
-
+        variables: Partial<DynamicVariables>
+    ) => {
+        if (!profile) return false;
+        
         try {
-            const userDocRef = doc(db, 'userProfiles', userId);
-
-            
-            const updatedVars = {
+            const sanitizedVars = sanitizeDynamicVariables(variables);
+            const updatedVariables = {
                 ...profile.dynamicVariables,
-                ...updates
+                ...sanitizedVars
             };
-
-            await updateDoc(userDocRef, {
-                'dynamicVariables': updatedVars,
-                'updatedAt': serverTimestamp()
+            
+            return await updateProfile({
+                dynamicVariables: updatedVariables
             });
-
-            console.log('Dynamic variables updated:', updatedVars);
-            return true;
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to update dynamic variables';
-            setError(errorMessage);
             console.error('Error updating dynamic variables:', error);
             return false;
         }
-    }, [userId, profile]);
+    }, [profile, updateProfile]);
 
     
-    const syncLanguageProgress = useCallback(async (): Promise<boolean> => {
-        if (!userId || !profile) return false;
-
-        const activeLanguage = getActiveLanguage();
-        if (!activeLanguage) return false;
-
-        
-        const updates = {
-            target_language: activeLanguage.language,
-            language_level: activeLanguage.level,
-            days_streak: activeLanguage.streak,
-            vocabulary_mastered: activeLanguage.vocabulary.mastered,
-            grammar_mastered: activeLanguage.grammar.mastered,
-            total_progress: activeLanguage.progress
-        };
-
-        return await updateDynamicVariables(updates);
-    }, [userId, profile, getActiveLanguage, updateDynamicVariables]);
-
-    
-    const getDynamicVariables = useCallback((): DynamicVariables => {
-        if (!profile) {
-            
-            return sanitizeDynamicVariables({
-                user_name: 'there',
-                subscription_tier: 'free',
-                language_level: 'beginner',
-                target_language: 'Spanish',
-                days_streak: 0,
-                vocabulary_mastered: 0,
-                grammar_mastered: 0,
-                total_progress: 0
-            });
-        }
-
-        
-        const variables = {
-            ...profile.dynamicVariables
-        };
-
-        
-        const activeLanguage = getActiveLanguage();
-        if (activeLanguage) {
-            variables.target_language = activeLanguage.language;
-            variables.language_level = activeLanguage.level;
-            variables.days_streak = activeLanguage.streak;
-            variables.vocabulary_mastered = activeLanguage.vocabulary.mastered;
-            variables.grammar_mastered = activeLanguage.grammar.mastered;
-            variables.total_progress = activeLanguage.progress;
-        }
-
-        variables.user_name = profile.firstName || profile.displayName || variables.user_name;
-
-        variables.subscription_tier = profile.subscriptionTier;
-
-        
-        return sanitizeDynamicVariables(variables);
-    }, [profile, getActiveLanguage]);
-
     return {
         profile,
         isLoading,
@@ -392,10 +389,6 @@ export const useUserProfile = () => {
         loadProfile,
         updateProfile,
         updateLanguageProgress,
-        getLanguageProgress,
-        getActiveLanguage,
-        getDynamicVariables,
-        updateDynamicVariables,
-        syncLanguageProgress
+        updateDynamicVariables
     };
 };

@@ -10,30 +10,30 @@ import { Notifications } from '@mantine/notifications';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
-import { useFirebaseChat } from './lib/firebase/firebaseConfig';
+import { useSupabaseChat } from './lib/supabase/supabaseClient';
 import { ProfileProvider } from './contexts/ProfileContext'; 
 
 function App() {
   const { user, isLoaded } = useUser();
-  const { initializeFirebase, createUserProfile, isFirebaseInitialized } = useFirebaseChat();
+  const { initializeSupabase, createUserProfile, isSupabaseInitialized } = useSupabaseChat();
   const [initializationAttempted, setInitializationAttempted] = useState(false);
 
   useEffect(() => {
     const initUser = async () => {
       if (user) {
         try {
-          const isInitialized = await initializeFirebase();
+          const isInitialized = await initializeSupabase();
           if (isInitialized) {
             await createUserProfile({
               email: user.primaryEmailAddress?.emailAddress || '',
             });
           } else {
             console.log('Running in local-only mode');
-            // Continue without Firebase, we'll use localStorage fallbacks
+            // Continue without Supabase, we'll use localStorage fallbacks
           }
         } catch (error) {
-          console.error('Failed to initialize Firebase:', error);
-          // Continue without Firebase, we'll use localStorage fallbacks
+          console.error('Failed to initialize Supabase:', error);
+          // Continue without Supabase, we'll use localStorage fallbacks
         } finally {
           setInitializationAttempted(true);
         }
@@ -45,7 +45,7 @@ function App() {
     if (isLoaded && !initializationAttempted) {
       initUser();
     }
-  }, [user, isLoaded, initializationAttempted]);
+  }, [user, isLoaded, initializationAttempted, initializeSupabase, createUserProfile]);
 
   if (!isLoaded) {
     return <div>Loading...</div>;

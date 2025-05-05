@@ -11,11 +11,13 @@ import { useProfile } from '../contexts/ProfileContext';
 import { sanitizeDynamicVariables } from '../types/dynamicVariables'; 
 import { useAzurePronunciation, FeedbackType } from '../services/AzurePronunciationService'; 
 import { EnhancedConversationItem } from '../types/conversation'; 
+import { useStreak } from '../hooks/useStreak'; 
 
 export const Home: React.FC = () => {
     const [selectedMode, setSelectedMode] = useState('tutor'); 
     const { user } = useUser();
     const { profile, isLoading: profileLoading, getDynamicVariables } = useProfile();
+    const { updateStreak } = useStreak(); 
 
     
     const [clientAudioLevel, setClientAudioLevel] = useState(0);
@@ -52,16 +54,14 @@ export const Home: React.FC = () => {
         getOutputAudioLevel, 
         updateDynamicVariables,
     } = useWebSocketConversation({
-        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'struNpxnJkL8IlMMev4O', 
+        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'JLN0MSwr6AtVxCQM32XU', 
         dynamicVariables: profile ? sanitizeDynamicVariables(getDynamicVariables()) : {},
         autoReconnect: true,
         onMessageReceived: (message) => {
             console.log("Message received:", message);
-
             
             checkForPronunciationPrompt(message);
         },
-        
     });
 
     
@@ -79,7 +79,6 @@ export const Home: React.FC = () => {
             console.log("Home: Not connected, attempting to connect...");
             try {
                 await startConversation();
-                
                 return true;
             } catch (err: any) {
                 console.error("Connection error:", err);
@@ -87,7 +86,6 @@ export const Home: React.FC = () => {
                 return false;
             }
         }
-        
         return connectionState === ConnectionState.CONNECTED;
     }, [connectionState, startConversation]);
 
@@ -133,10 +131,6 @@ export const Home: React.FC = () => {
                     referenceText: referenceText, 
                     language: profile?.dynamicVariables?.target_language?.toString().toLowerCase() || 'en-US'
                 };
-
-                
-                
-                
             }
         }
     }, [profile?.dynamicVariables?.target_language]);
@@ -153,6 +147,8 @@ export const Home: React.FC = () => {
             try {
                 await startRecording();
                 console.log("Home: Recording started successfully");
+                
+                updateStreak();
             } catch (err: any) {
                 console.error("Start recording error:", err);
                 notifications.show({ title: 'Microphone Error', message: err.message || 'Could not access microphone. Please check permissions.', color: 'red' });
@@ -161,7 +157,7 @@ export const Home: React.FC = () => {
             console.warn("Home: Cannot start recording, connection not ready.");
             notifications.show({ title: 'Not Connected', message: 'Please wait for connection before recording.', color: 'orange' });
         }
-    }, [ensureConnected, startRecording]);
+    }, [ensureConnected, startRecording, updateStreak]);
 
     
     const handleStopRecording = useCallback(async (): Promise<void> => {
@@ -189,24 +185,6 @@ export const Home: React.FC = () => {
                 console.log("Feedback:", feedback);
 
                 
-                const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === 'user');
-                if (lastUserMessageIndex >= 0) {
-                    const userMessageIndex = messages.length - 1 - lastUserMessageIndex;
-                    const updatedMessage = {
-                        ...messages[userMessageIndex],
-                        feedback
-                    };
-
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                }
-
-                
                 setIsPronunciationMode(false);
                 setCurrentReferenceText(null);
 
@@ -223,7 +201,7 @@ export const Home: React.FC = () => {
                 setCurrentReferenceText(null);
             }
         }
-    }, [stopRecording, isPronunciationMode, currentReferenceText, profile, messages, assessPronunciation]);
+    }, [stopRecording, isPronunciationMode, currentReferenceText, profile, assessPronunciation]);
 
     
     const handleSendMessage = useCallback(async (message: string, callback?: (response: string) => void): Promise<void> => {
@@ -232,10 +210,12 @@ export const Home: React.FC = () => {
         if (connected) {
             try {
                 
+                updateStreak();
+                
+                
                 let feedbackType: 'grammar' | 'vocabulary' = Math.random() > 0.5 ? 'grammar' : 'vocabulary';
                 const feedback = generateLanguageFeedback(message, feedbackType);
 
-                
                 
                 const customMessage: EnhancedConversationItem = {
                     id: Date.now().toString(),
@@ -266,7 +246,7 @@ export const Home: React.FC = () => {
             console.warn("Home: Cannot send message, connection not ready.");
             notifications.show({ title: 'Not Connected', message: 'Please wait for connection to send messages.', color: 'orange' });
         }
-    }, [ensureConnected, sendMessage, generateLanguageFeedback]);
+    }, [ensureConnected, sendMessage, generateLanguageFeedback, updateStreak]);
 
     const handleNewChat = useCallback(async () => {
         console.log("Home: Starting new chat session");
@@ -279,21 +259,15 @@ export const Home: React.FC = () => {
         setCurrentReferenceText(null);
 
         
-        
-        
-    }, [connectionState, handleDisconnect]);
+        updateStreak();
+    }, [connectionState, handleDisconnect, updateStreak]);
 
     const handleSelectChat = useCallback((chatId: string) => {
         console.log("Home: Selecting chat:", chatId);
         
-        
-        
-        
-        
-        
+        updateStreak();
         notifications.show({ message: `Loading chat ${chatId}... (Implementation Pending)`, color: 'blue' });
-        
-    }, [conversationId, handleNewChat]); 
+    }, [updateStreak]); 
 
     
     const processAudioData = useCallback((audioData: ArrayBuffer) => {
@@ -320,7 +294,6 @@ export const Home: React.FC = () => {
             };
             animationFrame = requestAnimationFrame(updateAudioLevels);
         } else {
-            
             setClientAudioLevel(0);
         }
         

@@ -9,9 +9,8 @@ import {
     IconPlus, IconTrash, IconX
 } from '@tabler/icons-react';
 import {styles} from './styles'; 
-import {useFirebaseChat, Chat} from '../../lib/firebase/firebaseConfig'; 
+import {useSupabaseChat, Chat} from '../../lib/supabase/supabaseClient'; 
 import {formatDistanceToNow, isToday, isYesterday, format} from 'date-fns';
-import {Timestamp} from 'firebase/firestore';
 import {useDebouncedState} from '@mantine/hooks';
 import {notifications} from '@mantine/notifications';
 
@@ -44,7 +43,10 @@ const groupChatsByDateLogic = (chatsToGroup: Chat[]): GroupedChats => {
         if (!chat.timestamp) return;
         let date: Date;
         try {
-            date = chat.timestamp instanceof Timestamp ? chat.timestamp.toDate() : new Date(chat.timestamp);
+            date = chat.timestamp instanceof Date 
+                ? chat.timestamp 
+                : new Date(chat.timestamp);
+                
             if (isNaN(date.getTime())) throw new Error("Invalid date");
         } catch (e) {
             return;
@@ -90,10 +92,10 @@ const groupChatsByDateLogic = (chatsToGroup: Chat[]): GroupedChats => {
 };
 
 
-const formatTimestamp = (timestamp: Timestamp | Date | number | string | null): string => {
+const formatTimestamp = (timestamp: Date | string | null): string => {
     if (!timestamp) return '';
     try {
-        const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
         if (isNaN(date.getTime())) return '';
         if (isToday(date)) return format(date, 'p');
         if (isYesterday(date)) return 'Yesterday';
@@ -199,7 +201,7 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({
 
     
     const theme = useMantineTheme();
-    const {subscribeToChats, deleteChat, renameChat} = useFirebaseChat();
+    const {subscribeToChats, deleteChat, renameChat} = useSupabaseChat();
 
     
     useEffect(() => {
@@ -210,11 +212,11 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({
             const unsubscribe = subscribeToChats((updatedChats) => {
                 // Sort chats by timestamp (newest first)
                 const sortedChats = updatedChats.sort((a, b) => {
-                    const timeA = a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : new Date(a.timestamp || 0).getTime();
-                    const timeB = b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : new Date(b.timestamp || 0).getTime();
+                    const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp || 0).getTime();
+                    const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp || 0).getTime();
                     return timeB - timeA; 
                 });
-                setRawChats(sortedChats); 
+                setRawChats(sortedChats);
                 setIsLoading(false);
             });
             

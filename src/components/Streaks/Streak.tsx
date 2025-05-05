@@ -1,11 +1,15 @@
 import { Paper, Text, Group, RingProgress, Center } from '@mantine/core';
 import { IconFlame } from '@tabler/icons-react';
 import { useStreak } from '../../hooks/useStreak';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export const Streak: React.FC = () => {
-  const { getStreakFromStorage } = useStreak();
+  const { getStreakFromStorage, updateStreak } = useStreak();
   const streak = getStreakFromStorage();
+  
+  useEffect(() => {
+    updateStreak();
+  }, [updateStreak]);
 
   return (
     <Paper shadow="sm" p="md" withBorder>
