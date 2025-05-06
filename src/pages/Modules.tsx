@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   AppShell,
   Container,
@@ -22,8 +22,10 @@ import {
   HoverCard,
   Tooltip,
   Avatar,
-  Indicator
+  SimpleGrid,
+  List
 } from '@mantine/core';
+import axios from 'axios';
 import {
   IconBrain,
   IconLock,
@@ -41,848 +43,531 @@ import {
   IconCheck,
   IconCircleCheck,
   IconStarFilled,
-  IconArrowRightCircle
+  IconArrowRightCircle,
+  IconBookUpload,
+  IconVocabulary,
+  IconMessageChatbot,
+  IconClockHour4,
+  IconClock
 } from '@tabler/icons-react';
-import { useInView } from 'react-intersection-observer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '../components/Header/Header';
+import { AudioVisualiser } from '../components/AudioControls/AudioVisualiser';
 
+// Learning path levels
+const learningLevels = [
+  { id: 'beginner', label: 'Beginner', icon: IconBrain },
+  { id: 'intermediate', label: 'Intermediate', icon: IconBooks },
+  { id: 'immersion', label: 'Immersion', icon: IconMountain },
+  { id: 'foundation', label: 'Foundation', icon: IconTimeline }
+];
 
-interface PathInfo {
-  title: string;
-  color: string;
-  icon: JSX.Element;
-  description: string;
-}
-
-interface LearningPaths {
-  main: PathInfo;
-  expert: PathInfo;
-  challenge: PathInfo;
-}
-
-type PathType = keyof LearningPaths;
-
+// Module definition
 interface Module {
   id: string;
   title: string;
   description: string;
-  path: PathType;
-  level: number;
   progress: number;
-  isCompleted?: boolean;
   isLocked?: boolean;
-  skills: string[];
-  achievements?: string[];
-  lessonCount: number;
-  estimatedTime: string;
-  nextLesson?: string;
+  timeEstimate: string;
+  level: string;
 }
 
+// Speak text using ElevenLabs
+const speakText = async (text: string) => {
+  try {
+    // Use ElevenLabs API to generate speech
+    const response = await axios.post('/api/tts', { 
+      text,
+      voice_id: 'EXAVITQu4vr4xnSDxMaL', // Default voice ID
+      model_id: 'eleven_monolingual_v1'
+    }, {
+      responseType: 'arraybuffer'
+    });
 
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      delay: i * 0.1,
-      duration: 0.5,
-      ease: [0.22, 1, 0.36, 1]
+    // Create an audio element and play the speech
+    const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    
+    // Play the audio
+    await audio.play();
+    
+    // Clean up URL object after audio is done playing
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+    };
+  } catch (error) {
+    console.error('Error generating speech:', error);
+    
+    // Fallback to browser's built-in speech synthesis if ElevenLabs fails
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES'; // Spanish
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
     }
-  })
+  }
 };
 
 const ModulesPage = () => {
   const theme = useMantineTheme();
-  const [selectedPath, setSelectedPath] = useState<PathType>('main');
-  const [selectedLevel, setSelectedLevel] = useState<number>(1);
-  const [progressOverview, setProgressOverview] = useState({
-    totalCompleted: 0,
-    totalModules: 0,
-    streakDays: 7,
-    nextMilestone: 95
-  });
+  const [activeLevel, setActiveLevel] = useState('intermediate');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasSpoken, setHasSpoken] = useState(false);
 
+  // Sample modules
+  const modules: Module[] = [
+    {
+      id: 'vocab-builder',
+      title: 'Vocabulary Builder',
+      description: 'Expand your word bank with targeted practice',
+      progress: 60,
+      timeEstimate: '15-mins',
+      level: 'intermediate'
+    },
+    {
+      id: 'everyday-conversations',
+      title: 'Everyday Conversations',
+      description: 'Practice common dialogues for daily interactions',
+      progress: 80,
+      timeEstimate: '15-20 min',
+      level: 'intermediate'
+    },
+    {
+      id: 'complex-sentences',
+      title: 'Complex Sentences',
+      description: 'Master advanced sentence structures and expressions',
+      progress: 0,
+      isLocked: true,
+      timeEstimate: '25-30 min',
+      level: 'intermediate'
+    },
+    {
+      id: 'vocabulary-drills',
+      title: 'Vocabulary Drills',
+      description: 'Quick practice sessions to strengthen your vocabulary',
+      progress: 40,
+      timeEstimate: '10 mins',
+      level: 'beginner'
+    },
+    {
+      id: 'grammar-basics',
+      title: 'Grammar Basics',
+      description: 'Master essential grammar patterns and rules',
+      progress: 70,
+      timeEstimate: '20 mins',
+      level: 'beginner'
+    }
+  ];
+
+  const filteredModules = modules.filter(module => module.level === activeLevel);
+  
   const handleModeChange = (mode: string) => {
     console.log('Mode changed:', mode);
   };
 
-  const learningPaths: LearningPaths = {
-    main: {
-      title: 'Core',
-      color: 'blue',
-      icon: <IconBrain size={24} />,
-      description: 'Master essential language skills through structured lessons'
-    },
-    expert: {
-      title: 'Expert',
-      color: 'violet',
-      icon: <IconBooks size={24} />,
-      description: 'Advanced language mastery for experienced learners'
-    },
-    challenge: {
-      title: 'Challenge',
-      color: 'orange',
-      icon: <IconFlame size={24} />,
-      description: 'Test your skills with immersive challenges'
-    }
-  };
-
-  const modules: Module[] = [
-    {
-      id: '1',
-      title: 'Language Foundations',
-      description: 'Essential vocabulary and grammar for beginners',
-      path: 'main',
-      level: 1,
-      progress: 100,
-      isCompleted: true,
-      skills: ['Basic Vocabulary', 'Simple Grammar', 'Pronunciation'],
-      achievements: ['Perfect Score', 'Fast Learner'],
-      lessonCount: 12,
-      estimatedTime: '4-6 hours',
-    },
-    {
-      id: '2',
-      title: 'Everyday Conversations',
-      description: 'Common phrases and dialogue patterns for daily interactions',
-      path: 'main',
-      level: 1,
-      progress: 65,
-      skills: ['Speaking', 'Listening', 'Cultural Context'],
-      achievements: ['Streak Master'],
-      lessonCount: 10,
-      estimatedTime: '5-7 hours',
-      nextLesson: 'Ordering at Restaurants',
-    },
-    
-    {
-      id: '3',
-      title: 'Intermediate Grammar',
-      description: 'More complex language structures and tenses',
-      path: 'main',
-      level: 2,
-      progress: 30,
-      skills: ['Verb Tenses', 'Sentence Structure', 'Reading Comprehension'],
-      lessonCount: 14,
-      estimatedTime: '7-9 hours',
-      nextLesson: 'Past Tense Conjugation',
-    },
-    {
-      id: '4',
-      title: 'Advanced Communication',
-      description: 'Fluent expression in diverse contexts with rich vocabulary',
-      path: 'main',
-      level: 2,
-      progress: 0,
-      isLocked: true,
-      skills: ['Complex Conversations', 'Nuanced Expression', 'Cultural Fluency'],
-      lessonCount: 15,
-      estimatedTime: '10-12 hours',
-    },
-    {
-      id: '5',
-      title: 'Business Language',
-      description: 'Professional vocabulary and communication strategies',
-      path: 'expert',
-      level: 1,
-      progress: 45,
-      skills: ['Business Vocabulary', 'Formal Writing', 'Negotiations'],
-      lessonCount: 8,
-      estimatedTime: '6-8 hours',
-      nextLesson: 'Email Correspondence',
-    },
-    {
-      id: '6',
-      title: 'Academic Language',
-      description: 'Scholarly and technical language skills for research',
-      path: 'expert',
-      level: 1,
-      progress: 20,
-      skills: ['Academic Writing', 'Research Terminology', 'Presentations'],
-      lessonCount: 12,
-      estimatedTime: '8-10 hours',
-      nextLesson: 'Academic Essay Structure',
-    },
-    {
-      id: '7',
-      title: 'Daily Challenges',
-      description: 'Quick, fun exercises to test various language skills',
-      path: 'challenge',
-      level: 1,
-      progress: 50,
-      skills: ['Vocabulary Recall', 'Quick Translation', 'Listening Comprehension'],
-      achievements: ['7-Day Streak'],
-      lessonCount: 30,
-      estimatedTime: '10-15 min daily',
-      nextLesson: 'Weather Vocabulary Challenge',
-    }
+  // AI suggestions
+  const aiSuggestions = [
+    'Finish "Complex Sentences" - 20% left',
+    'Try "Story Retelling" to boost grammar',
+    'Grammar gap: Verb conjugestion - try this→'
   ];
 
-  
+  // Use ElevenLabs to speak the greeting when the page loads
   useEffect(() => {
-    const filteredModules = modules.filter(module => module.path === selectedPath);
-    const totalModules = filteredModules.length;
-    const completedModules = filteredModules.filter(m => m.isCompleted).length;
-
-    setProgressOverview({
-      totalCompleted: completedModules,
-      totalModules: totalModules,
-      streakDays: 7,
-      nextMilestone: 95
-    });
-  }, [selectedPath, selectedLevel]);
-
-  
-  const filteredModules = modules.filter(
-      module => module.path === selectedPath && module.level === selectedLevel
-  );
-
-  
-  const availableLevels = [...new Set(
-      modules
-          .filter(module => module.path === selectedPath)
-          .map(module => module.level)
-  )].sort((a, b) => a - b);
-
-  
-  const pathModules = modules.filter(module => module.path === selectedPath);
-  const pathProgress = pathModules.length > 0
-      ? Math.round(pathModules.reduce((sum, module) => sum + module.progress, 0) / pathModules.length)
-      : 0;
+    if (!hasSpoken) {
+      // Short delay to ensure the page has loaded properly
+      const timer = setTimeout(() => {
+        const greeting = '¡Hola, Alex! Ready to push your Spanish speaking to B2?';
+        speakText(greeting);
+        setHasSpoken(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasSpoken]);
 
   return (
-      <AppShell
-          header={{ height: 60 }}
-          padding={0}
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            width: '100%',
-            backgroundColor: '#0f1012',
-            backgroundImage: 'radial-gradient(circle at top right, rgba(37, 38, 43, 0.2) 0%, transparent 70%)',
-          }}
-      >
-        <Header
-            selectedMode="tutor"
-            onModeChange={handleModeChange}
-            onResetAPIKey={() => console.log('Reset API key')}
-            showSettings={true} 
-        />
+    <AppShell
+      header={{ height: 60 }}
+      padding={0}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        backgroundColor: '#0f1012',
+        backgroundImage: 'radial-gradient(circle at top right, rgba(37, 38, 43, 0.2) 0%, transparent 70%)',
+      }}
+    >
+      <Header
+        selectedMode="tutor"
+        onModeChange={handleModeChange}
+        onResetAPIKey={() => console.log('Reset API key')}
+        showSettings={true}
+      />
 
-        <AppShell.Main style={{
-          backgroundColor: '#0f1012',
-          backgroundImage: 'radial-gradient(circle at top right, rgba(37, 38, 43, 0.2) 0%, transparent 70%)'
-        }}><Box py="xl" mih="calc(100vh - 60px)" pos="relative">
-          {/* Background decoration elements */}
+      <AppShell.Main style={{
+        backgroundColor: '#0f1012',
+        backgroundImage: 'radial-gradient(circle at top right, rgba(37, 38, 43, 0.2) 0%, transparent 70%)'
+      }}>
+        <Box py="xl" h="calc(100vh - 60px)" pos="relative" style={{ overflowY: 'auto' }}>
+          {/* Decorative background elements */}
           <Box
-              style={{
-                position: 'absolute',
-                top: rem(-80),
-                right: rem(-80),
-                width: rem(400),
-                height: rem(400),
-                borderRadius: '50%',
-                background: `radial-gradient(circle, rgba(70, 90, 180, 0.05) 0%, transparent 70%)`,
-                zIndex: 0
-              }}
+            style={{
+              position: 'absolute',
+              top: rem(-80),
+              right: rem(-80),
+              width: rem(400),
+              height: rem(400),
+              borderRadius: '50%',
+              background: `radial-gradient(circle, rgba(70, 90, 180, 0.05) 0%, transparent 70%)`,
+              zIndex: 0
+            }}
           />
 
           <Box
-              style={{
-                position: 'absolute',
-                bottom: rem(-100),
-                left: rem(-100),
-                width: rem(300),
-                height: rem(300),
-                borderRadius: '50%',
-                background: `radial-gradient(circle, rgba(70, 90, 180, 0.05) 0%, transparent 70%)`,
-                zIndex: 0
-              }}
+            style={{
+              position: 'absolute',
+              bottom: rem(-100),
+              left: rem(-100),
+              width: rem(300),
+              height: rem(300),
+              borderRadius: '50%',
+              background: `radial-gradient(circle, rgba(70, 90, 180, 0.05) 0%, transparent 70%)`,
+              zIndex: 0
+            }}
           />
 
-          {/* Main content */}
           <Container size="xl" style={{ position: 'relative', zIndex: 1 }}>
-            {/* Progress overview and learning path selection */}
-            <Box mb={rem(50)}>
-              <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+            {/* Glass Card Header with Waveform */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Paper
+                p="xl"
+                radius="lg"
+                mb={40}
+                style={{
+                  background: 'rgba(25, 27, 32, 0.7)',
+                  backdropFilter: 'blur(15px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  height: 160
+                }}
               >
-                <Group gap="xl" align="flex-start" wrap="nowrap" mb="xl">
-                  {/* Learning path selector */}
-                  <Paper
-                      p="lg"
-                      radius="md"
-                      style={{
-                        flex: 1,
-                        background: 'rgba(37, 38, 43, 0.6)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)'
-                      }}
-                  >
-                    <Stack gap="md">
-                      <Title order={2} c="white" size="h3">Learning Journey</Title>
+                <Group align="center" justify="space-between" h="100%">
+                  <Group gap={24}>
+                    <Box style={{ 
+                      width: 120, 
+                      height: 35,
+                      position: 'relative',
+                      marginTop: '10px',
+                      overflow: 'visible'
+                    }}>
+                      <canvas 
+                        ref={canvasRef} 
+                        style={{ 
+                          width: '100%', 
+                          height: '100%',
+                          opacity: 0.8,
+                          position: 'absolute',
+                          top: 0,
+                          left: 0
+                        }}
+                      />
+                      <AudioVisualiser 
+                        canvasRef={canvasRef} 
+                        isActive={true}
+                        visualizerStyle="wave"
+                        color="#4195d3"
+                      />
+                    </Box>
+                    <Box>
+                      <Text size="xl" fw={600} c="white" style={{ lineHeight: 1.4 }}>
+                        ¡Hola, Alex! Ready to push your Spanish speaking to B2?
+                      </Text>
+                    </Box>
+                  </Group>
+                  <Box style={{ position: 'relative', width: 100, height: 100 }}>
+                    <Text fw={800} c="blue.4" ta="center" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2rem' }}>
+                      78%
+                    </Text>
+                    <RingProgress
+                      size={100}
+                      thickness={4}
+                      roundCaps
+                      sections={[{ value: 78, color: 'blue.4' }]}
+                      label={<></>}
+                    />
+                    <Text size="xs" c="dimmed" ta="center" mt={5}>Next Milestone</Text>
+                  </Box>
+                </Group>
+              </Paper>
+            </motion.div>
 
-                      {/* Path selector cards */}
-                      <Group gap="xs" wrap="nowrap">
-                        {(Object.entries(learningPaths) as [PathType, PathInfo][]).map(([key, path], index) => (
-                            <motion.div
-                                key={key}
-                                initial="hidden"
-                                animate="visible"
-                                variants={fadeIn}
-                                custom={index}
-                                style={{ flex: 1 }}
+            {/* Main content area with learning paths and modules */}
+            <Group align="flex-start" style={{ gap: '2rem' }} wrap="nowrap">
+              {/* Left side: Learning Path Tree */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Paper
+                  radius="lg"
+                  p={0}
+                  style={{
+                    background: 'rgba(25, 27, 32, 0.7)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    width: rem(120),
+                    minHeight: rem(500)
+                  }}
+                >
+                  <Stack gap={0}>
+                    {learningLevels.map((level) => (
+                      <Box 
+                        key={level.id}
+                        style={{ 
+                          position: 'relative',
+                          padding: rem(15),
+                          paddingTop: rem(25),
+                          paddingBottom: rem(25),
+                          backgroundColor: activeLevel === level.id ? 'rgba(50, 85, 155, 0.2)' : 'transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => setActiveLevel(level.id)}
+                      >
+                        {/* Vertical line connector */}
+                        {level.id !== 'foundation' && (
+                          <Box style={{
+                            position: 'absolute',
+                            left: '50%',
+                            bottom: '-30px',
+                            width: '2px',
+                            height: '60px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            zIndex: 0
+                          }} />
+                        )}
+                        
+                        {/* Active indicator dot */}
+                        {activeLevel === level.id && (
+                          <Box
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              width: '4px',
+                              height: '100%',
+                              background: 'var(--mantine-color-blue-6)',
+                            }}
+                          />
+                        )}
+                        
+                        <Stack align="center" gap="sm">
+                          <ThemeIcon 
+                            size="md"
+                            radius="xl"
+                            variant={activeLevel === level.id ? "filled" : "light"}
+                            color={activeLevel === level.id ? "blue" : "gray"}
+                          >
+                            <level.icon size={18} />
+                          </ThemeIcon>
+                          <Text 
+                            size="sm" 
+                            fw={500}
+                            c={activeLevel === level.id ? "white" : "dimmed"}
+                          >
+                            {level.label}
+                          </Text>
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+              </motion.div>
+
+              {/* Right side: Modules Grid */}
+              <Box style={{ flex: 1 }}>
+                <SimpleGrid cols={3} spacing="lg">
+                  {/* Render filtered modules */}
+                  {filteredModules.map((module, index) => (
+                    <motion.div
+                      key={module.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                    >
+                      <Paper
+                        p="md"
+                        radius="md"
+                        style={{
+                          background: 'rgba(25, 27, 32, 0.7)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                          cursor: module.isLocked ? 'default' : 'pointer',
+                          opacity: module.isLocked ? 0.7 : 1,
+                          position: 'relative',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {module.isLocked && (
+                          <Box 
+                            style={{ 
+                              position: 'absolute', 
+                              top: 10, 
+                              right: 10,
+                              zIndex: 2
+                            }}
+                          >
+                            <IconLock size={18} color="var(--mantine-color-gray-6)" />
+                          </Box>
+                        )}
+                        
+                        {/* Module icon */}
+                        <ThemeIcon 
+                          size="md" 
+                          radius="md" 
+                          variant="filled" 
+                          color={module.id.includes('vocab') ? "blue" : 
+                                 module.id.includes('conversation') ? "blue" : 
+                                 "blue"} 
+                          mb="md"
+                          style={{ opacity: 0.8 }}
+                        >
+                          {module.id.includes('vocab') ? (
+                            <IconVocabulary size={16} />
+                          ) : module.id.includes('conversation') ? (
+                            <IconMessageChatbot size={16} />
+                          ) : (
+                            <IconBooks size={16} />
+                          )}
+                        </ThemeIcon>
+                        
+                        <Title order={4} mb="xs" style={{ fontSize: '1.1rem' }}>{module.title}</Title>
+                        <Text size="sm" c="dimmed" mb={25} lh={1.5}>
+                          {module.description}
+                        </Text>
+                        
+                        <Group gap="xs" mb="sm">
+                          <Box style={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(50, 50, 60, 0.5)',
+                            padding: '4px 8px',
+                            borderRadius: '4px'
+                          }}>
+                            <IconClockHour4 size={14} color="var(--mantine-color-gray-5)" />
+                            <Text size="xs" c="gray.5">{module.timeEstimate}</Text>
+                          </Box>
+                        </Group>
+                        
+                        <Box mt="auto">
+                          <Box mb="xs">
+                            <Text size="sm" fw={500} c="gray.4" style={{ textAlign: 'right' }}>
+                              {module.progress}%
+                            </Text>
+                          </Box>
+                          <Progress
+                            value={module.progress}
+                            color={module.isLocked ? "gray" : "blue"}
+                            size="sm"
+                            radius="xl"
+                            mb="md"
+                            styles={{
+                              root: {
+                                backgroundColor: 'rgba(40, 45, 55, 0.5)'
+                              }
+                            }}
+                          />
+                          
+                          {module.progress > 0 && !module.isLocked && (
+                            <Button 
+                              variant="filled" 
+                              color="blue" 
+                              radius="md" 
+                              fullWidth
+                              styles={{
+                                root: {
+                                  backgroundColor: 'rgba(50, 115, 220, 0.8)'
+                                }
+                              }}
                             >
-                              <Paper
-                                  p="md"
-                                  radius="md"
-                                  style={{
-                                    cursor: 'pointer',
-                                    background: selectedPath === key
-                                        ? `linear-gradient(135deg, var(--mantine-color-${path.color}-9) 0%, var(--mantine-color-${path.color}-7) 100%)`
-                                        : 'rgba(32, 33, 36, 0.6)',
-                                    border: `1px solid ${selectedPath === key
-                                        ? `var(--mantine-color-${path.color}-6)`
-                                        : 'rgba(255, 255, 255, 0.05)'}`,
-                                    transition: 'all 0.3s ease',
-                                    height: '100%',
-                                    display: 'flex',
-                                    flexDirection: 'column'
-                                  }}
-                                  onClick={() => setSelectedPath(key)}
-                              >
-                                <Group gap="sm" mb="xs">
-                                  <ThemeIcon
-                                      variant={selectedPath === key ? "filled" : "light"}
-                                      color={path.color}
-                                      size="lg"
-                                      radius="xl"
-                                  >
-                                    {path.icon}
-                                  </ThemeIcon>
-                                  <Title order={4} c={selectedPath === key ? "white" : "dimmed"}>
-                                    {path.title}
-                                  </Title>
-                                </Group>
-
-                                <Text
-                                    size="sm"
-                                    c={selectedPath === key ? "white" : "dimmed"}
-                                    lineClamp={2}
-                                    style={{ marginBottom: 'auto' }}
-                                >
-                                  {path.description}
-                                </Text>
-
-                                {/* Path progress indicator */}
-                                <Group gap="xs" mt="md" align="center">
-                                  <Progress
-                                      value={pathProgress}
-                                      color={path.color}
-                                      size="sm"
-                                      radius="xl"
-                                      style={{ flex: 1 }}
-                                  />
-                                  <Text size="xs" c={selectedPath === key ? "white" : "dimmed"}>
-                                    {pathProgress}%
-                                  </Text>
-                                </Group>
-                              </Paper>
-                            </motion.div>
-                        ))}
-                      </Group>
-                    </Stack>
-                  </Paper>
-
-                  {/* Stats/Progress snapshot */}
-                  <Paper
-                      p="lg"
+                              Resume
+                            </Button>
+                          )}
+                          
+                          {module.isLocked && (
+                            <Text size="sm" c="dimmed" ta="center">
+                              Locked
+                            </Text>
+                          )}
+                        </Box>
+                      </Paper>
+                    </motion.div>
+                  ))}
+                  
+                  {/* AI Suggests Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                  >
+                    <Paper
+                      p="md"
                       radius="md"
                       style={{
-                        width: rem(280),
-                        background: 'rgba(37, 38, 43, 0.6)',
+                        background: 'rgba(25, 27, 32, 0.7)',
                         backdropFilter: 'blur(10px)',
                         border: '1px solid rgba(255, 255, 255, 0.05)',
+                        height: '100%',
                         display: 'flex',
                         flexDirection: 'column'
                       }}
-                  >
-                    <Group gap="md" mb="lg" align="flex-start">
-                      <RingProgress
-                          size={90}
-                          roundCaps
-                          thickness={8}
-                          sections={[
-                            { value: (progressOverview.totalCompleted / progressOverview.totalModules) * 100, color: `var(--mantine-color-${learningPaths[selectedPath].color}-6)` }
-                          ]}
-                          label={
-                            <Center>
-                              <Text c={`${learningPaths[selectedPath].color}`} fw={700} size="xl" ta="center">
-                                {Math.round((progressOverview.totalCompleted / progressOverview.totalModules) * 100)}%
-                              </Text>
-                            </Center>
-                          }
-                      />
-
-                      <div>
-                        <Text c="dimmed" size="sm">Learning Progress</Text>
-                        <Text c="white" fw={500}>
-                          {progressOverview.totalCompleted} of {progressOverview.totalModules} modules
-                        </Text>
-                        <Group gap="xs" mt="xs">
-                          <Badge
-                              color={learningPaths[selectedPath].color}
-                              variant="light"
-                              leftSection={<IconFlame size={12} />}
-                          >
-                            {progressOverview.streakDays} day streak
-                          </Badge>
-                        </Group>
-                      </div>
-                    </Group>
-
-                    <Box mt="md">
-                      {/* Next milestone */}
-                      <Text c="dimmed" size="sm" mb="xs">Next Milestone</Text>
-                      <Group gap="xs" align="center" wrap="nowrap">
-                        <Box style={{ flex: 1 }}>
-                          <Text c="white" fw={500} mb={4}>Conversation Master</Text>
-                          <Progress
-                              value={progressOverview.nextMilestone}
-                              color={`${learningPaths[selectedPath].color}`}
-                              size="sm"
-                              radius="xl"
-                          />
-                        </Box>
-                        <Text c="dimmed" size="sm">{progressOverview.nextMilestone}%</Text>
-                      </Group>
-                    </Box>
-
-                    <Button
-                        mt="lg"
-                        variant="light"
-                        color={learningPaths[selectedPath].color}
-                        rightSection={<IconArrowRight size={16} />}
-                        radius="xl"
-                        style={{ marginTop: 'auto' }}
                     >
-                      Continue Learning
-                    </Button>
-                  </Paper>
-                </Group>
-              </motion.div>
-
-              {/* Journey map / level selector */}
-              <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Paper
-                    radius="lg"
-                    p="lg"
-                    style={{
-                      background: 'rgba(37, 38, 43, 0.6)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
-                >
-                  <Title order={3} c="white" mb="md">Your Learning Path</Title>
-
-                  {/* Mountain journey visualization */}
-                  <Box pos="relative" h={rem(100)} maw="100%" mb="lg">
-                    {/* Path line */}
-                    <Box
-                        style={{
-                          position: 'absolute',
-                          height: rem(2),
-                          background: `linear-gradient(90deg, var(--mantine-color-${learningPaths[selectedPath].color}-6) 0%, var(--mantine-color-${learningPaths[selectedPath].color}-3) 100%)`,
-                          top: rem(36),
-                          left: 0,
-                          right: 0,
-                          zIndex: 1
-                        }}
-                    />
-
-                    {/* Level nodes */}
-                    <Group gap={0} justify="space-between" pos="relative" style={{ zIndex: 2 }}>
-                      {availableLevels.map((level, index) => {
-                        
-                        const levelModules = modules.filter(m => m.path === selectedPath && m.level === level);
-                        const completedInLevel = levelModules.filter(m => m.isCompleted).length;
-                        const levelProgress = levelModules.length > 0
-                            ? (completedInLevel / levelModules.length) * 100
-                            : 0;
-
-                        
-                        const isLocked = index > 0 && levelProgress === 0 &&
-                            modules.filter(m => m.path === selectedPath && m.level === availableLevels[index-1])
-                                .some(m => !m.isCompleted);
-
-                        return (
-                            <Box key={level} style={{ width: `${100 / availableLevels.length}%` }}>
-                              <Group justify="center">
-                                <Tooltip
-                                    label={isLocked ? "Complete previous levels to unlock" : `Level ${level}`}
-                                    position="top"
-                                >
-                                  <Box
-                                      style={{
-                                        cursor: isLocked ? 'not-allowed' : 'pointer',
-                                        opacity: isLocked ? 0.6 : 1
-                                      }}
-                                      onClick={() => !isLocked && setSelectedLevel(level)}
-                                  >
-                                    <Paper
-                                        p={rem(10)}
-                                        radius="xl"
-                                        style={{
-                                          width: rem(72),
-                                          height: rem(72),
-                                          display: 'flex',
-                                          flexDirection: 'column',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          background: selectedLevel === level
-                                              ? `linear-gradient(135deg, var(--mantine-color-${learningPaths[selectedPath].color}-9) 0%, var(--mantine-color-${learningPaths[selectedPath].color}-7) 100%)`
-                                              : isLocked
-                                                  ? 'rgba(40, 40, 45, 0.8)'
-                                                  : 'rgba(45, 46, 50, 0.8)',
-                                          border: `2px solid ${selectedLevel === level
-                                              ? `var(--mantine-color-${learningPaths[selectedPath].color}-5)`
-                                              : isLocked ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.15)'}`,
-                                          boxShadow: selectedLevel === level
-                                              ? `0 0 15px rgba(var(--mantine-color-${learningPaths[selectedPath].color}-rgb), 0.5)`
-                                              : 'none',
-                                          transition: 'all 0.3s ease'
-                                        }}
-                                    >
-                                      {isLocked ? (
-                                          <IconLock size={24} color="#6e7079" />
-                                      ) : levelProgress === 100 ? (
-                                          <IconCircleCheck size={28} color="#66bb6a" />
-                                      ) : (
-                                          <Text fw={700} size="xl" c={selectedLevel === level ? "white" : "dimmed"}>
-                                            {level}
-                                          </Text>
-                                      )}
-
-                                      <Text size="xs" mt={4} c={selectedLevel === level ? "white" : "dimmed"}>
-                                        {isLocked
-                                            ? "Locked"
-                                            : levelProgress === 100
-                                                ? "Complete"
-                                                : levelProgress > 0
-                                                    ? `${Math.round(levelProgress)}%`
-                                                    : "New"}
-                                      </Text>
-                                    </Paper>
-                                  </Box>
-                                </Tooltip>
-                              </Group>
-
-                              {/* Module count indicator */}
-                              <Text
-                                  m="center"
-                                  size="xs"
-                                  c="dimmed"
-                                  mt="xs"
-                              >
-                                {levelModules.length} {levelModules.length === 1 ? 'module' : 'modules'}
-                              </Text>
-                            </Box>
-                        );
-                      })}
-                    </Group>
-                  </Box>
-                </Paper>
-              </motion.div>
-            </Box>
-
-            {/* Module cards */}
-            <Title c="white" order={2} mb="lg">
-              Level {selectedLevel} Modules
-            </Title>
-
-            <Box mb="xl">
-              {filteredModules.length > 0 ? (
-                  <div style={{ position: 'relative' }}>
-                    {/* Module grid */}
-                    <Group align="stretch" wrap="wrap">
-                      {filteredModules.map((module, index) => {
-                        const [ref, inView] = useInView({
-                          triggerOnce: true,
-                          threshold: 0.1,
-                        });
-
-                        return (
-                            <Box
-                                key={module.id}
-                                ref={ref}
+                      <Title order={4} mb={25} style={{ fontSize: '1.1rem' }}>AI Suggests</Title>
+                      
+                      <List spacing="xl" style={{ listStyleType: 'none' }}>
+                        {aiSuggestions.map((suggestion, index) => (
+                          <List.Item
+                            key={index}
+                            icon={
+                              <Box
                                 style={{
-                                  width: 'calc(50% - 16px)',
-                                  margin: 0
+                                  width: 6,
+                                  height: 6,
+                                  backgroundColor: 'var(--mantine-color-blue-5)',
+                                  borderRadius: '50%',
+                                  marginTop: 8
                                 }}
-                            >
-                              <motion.div
-                                  initial={{ opacity: 0, y: 30 }}
-                                  animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                                  transition={{
-                                    duration: 0.6,
-                                    delay: index * 0.1,
-                                    ease: [0.25, 1, 0.5, 1]
-                                  }}
-                                  style={{ height: '100%' }}
-                              >
-                                <Paper
-                                    p={0}
-                                    radius="lg"
-                                    style={{
-                                      height: '100%',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      overflow: 'hidden',
-                                      background: 'rgba(37, 38, 43, 0.7)',
-                                      backdropFilter: 'blur(10px)',
-                                      border: module.isLocked
-                                          ? '1px solid rgba(255, 255, 255, 0.03)'
-                                          : `1px solid rgba(var(--mantine-color-${learningPaths[module.path].color}-rgb), 0.3)`,
-                                      transition: 'all 0.3s ease',
-                                      position: 'relative',
-                                      cursor: module.isLocked ? 'default' : 'pointer',
-                                      filter: module.isLocked ? 'grayscale(60%)' : 'none',
-                                      opacity: module.isLocked ? 0.7 : 1,
-                                      '&:hover': {
-                                        transform: module.isLocked ? 'none' : 'translateY(-5px)',
-                                        boxShadow: module.isLocked
-                                            ? 'none'
-                                            : `0 10px 25px -5px rgba(var(--mantine-color-${learningPaths[module.path].color}-rgb), 0.25)`
-                                      }
-                                    }}
-                                >
-                                  {/* Module image with overlay */}
-                                  <Box pos="relative" h={rem(140)}>
-                                    <div
-                                        style={{
-                                          width: '100%',
-                                          height: '100%',
-                                          background: module.isCompleted
-                                              ? `linear-gradient(135deg, rgba(30, 70, 32, 0.9), rgba(16, 45, 20, 0.95))`
-                                              : module.isLocked
-                                                  ? `linear-gradient(135deg, rgba(30, 30, 35, 0.9), rgba(20, 20, 25, 0.95))`
-                                                  : `linear-gradient(135deg, rgba(var(--mantine-color-${learningPaths[module.path].color}-rgb), 0.6), rgba(var(--mantine-color-${learningPaths[module.path].color}-rgb), 0.9))`,
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          padding: rem(20)
-                                        }}
-                                    >
-                                      <div style={{
-                                        textAlign: 'center',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: rem(8)
-                                      }}>
-                                        {module.isLocked ? (
-                                            <IconLock size={36} color="#6e7079" />
-                                        ) : module.isCompleted ? (
-                                            <IconCircleCheck size={36} color="#66bb6a" />
-                                        ) : (
-                                            learningPaths[module.path].icon
-                                        )}
-                                        <Text c="white" fw={600} size="sm">
-                                          {module.isCompleted
-                                              ? "COMPLETED"
-                                              : module.isLocked
-                                                  ? "LOCKED"
-                                                  : module.progress > 0
-                                                      ? `${module.progress}% COMPLETE`
-                                                      : "START LEARNING"}
-                                        </Text>
-                                      </div>
-                                    </div>
-
-                                    {/* Status indicator */}
-                                    <Box pos="absolute" top={rem(16)} right={rem(16)}>
-                                      {module.isLocked ? (
-                                          <ThemeIcon radius="xl" size="md" color="dark">
-                                            <IconLock size={16} />
-                                          </ThemeIcon>
-                                      ) : module.isCompleted ? (
-                                          <ThemeIcon radius="xl" size="md" color="green">
-                                            <IconCheck size={16} />
-                                          </ThemeIcon>
-                                      ) : (
-                                          <Badge
-                                              radius="xl"
-                                              color={learningPaths[module.path].color}
-                                          >
-                                            {module.progress}%
-                                          </Badge>
-                                      )}
-                                    </Box>
-
-                                    {/* Achievement badges */}
-                                    {module.achievements && module.achievements.length > 0 && (
-                                        <Box pos="absolute" top={rem(16)} left={rem(16)}>
-                                          <Group gap={8}>
-                                            {module.achievements.map((achievement, i) => (
-                                                <Tooltip key={i} label={achievement}>
-                                                  <ThemeIcon radius="xl" size="md" color="yellow" variant="filled">
-                                                    <IconStarFilled size={12} />
-                                                  </ThemeIcon>
-                                                </Tooltip>
-                                            ))}
-                                          </Group>
-                                        </Box>
-                                    )}
-                                  </Box>
-
-                                  {/* Module content */}
-                                  <Box p="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                    <Title order={4} c="white" mb="xs" lineClamp={1}>
-                                      {module.title}
-                                    </Title>
-
-                                    <Text size="sm" c="dimmed" lineClamp={2} mb="sm">
-                                      {module.description}
-                                    </Text>
-
-                                    {/* Skills */}
-                                    <Group gap="xs" mb="md">
-                                      {module.skills.slice(0, 2).map((skill, i) => (
-                                          <Badge
-                                              key={i}
-                                              variant="dot"
-                                              color={module.isLocked ? 'gray' : learningPaths[module.path].color}
-                                              size="sm"
-                                          >
-                                            {skill}
-                                          </Badge>
-                                      ))}
-                                      {module.skills.length > 2 && (
-                                          <Tooltip label={module.skills.slice(2).join(', ')}>
-                                            <Badge variant="dot" color="gray" size="sm">
-                                              +{module.skills.length - 2}
-                                            </Badge>
-                                          </Tooltip>
-                                      )}
-                                    </Group>
-
-                                    {/* Module stats */}
-                                    <Group gap="lg" mb="md" style={{ marginTop: 'auto' }}>
-                                      <Group gap="xs">
-                                        <Text size="xs" c="dimmed">Lessons:</Text>
-                                        <Text size="xs" fw={500} c="white">{module.lessonCount}</Text>
-                                      </Group>
-
-                                      <Group gap="xs">
-                                        <Text size="xs" c="dimmed">Time:</Text>
-                                        <Text size="xs" fw={500} c="white">{module.estimatedTime}</Text>
-                                      </Group>
-                                    </Group>
-
-                                    {/* Progress bar */}
-                                    {!module.isLocked && (
-                                        <Progress
-                                            value={module.progress}
-                                            color={module.isCompleted ? 'green' : learningPaths[module.path].color}
-                                            size="sm"
-                                            radius="xl"
-                                            mb="md"
-                                            styles={{
-                                              root: {
-                                                backgroundColor: 'rgba(255, 255, 255, 0.05)'
-                                              }
-                                            }}
-                                        />
-                                    )}
-
-                                    {/* Next lesson or action button */}
-                                    {module.isLocked ? (
-                                        <Badge
-                                            fullWidth
-                                            size="lg"
-                                            color="gray"
-                                            variant="filled"
-                                            style={{ height: rem(36) }}
-                                        >
-                                          Complete Previous Modules
-                                        </Badge>
-                                    ) : module.nextLesson && !module.isCompleted ? (
-                                        <Group gap="xs" align="center">
-                                          <IconPlayerPlay size={16} color={`var(--mantine-color-${learningPaths[module.path].color}-5)`} />
-                                          <Box style={{ flex: 1 }}>
-                                            <Text size="xs" c="dimmed">Next:</Text>
-                                            <Text size="sm" fw={500} c="white" lineClamp={1}>
-                                              {module.nextLesson}
-                                            </Text>
-                                          </Box>
-                                          <ActionIcon variant="subtle" color={learningPaths[module.path].color}>
-                                            <IconArrowRightCircle size={20} />
-                                          </ActionIcon>
-                                        </Group>
-                                    ) : (
-                                        <Button
-                                            fullWidth
-                                            radius="md"
-                                            variant={module.isCompleted ? "light" : "filled"}
-                                            color={module.isCompleted ? "green" : learningPaths[module.path].color}
-                                            rightSection={<IconArrowRight size={16} />}
-                                        >
-                                          {module.isCompleted ? 'Review' : module.progress > 0 ? 'Continue' : 'Start'}
-                                        </Button>
-                                    )}
-                                  </Box>
-                                </Paper>
-                              </motion.div>
-                            </Box>
-                        );
-                      })}
-                    </Group>
-                  </div>
-              ) : (
-                  <Paper
-                      p="xl"
-                      radius="md"
-                      style={{
-                        background: 'rgba(37, 38, 43, 0.6)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        textAlign: 'center'
-                      }}
-                  >
-                    <Stack gap="md" align="center">
-                      <ThemeIcon size="xl" radius="xl" color={learningPaths[selectedPath].color} variant="light">
-                        <IconMountain size={24} />
-                      </ThemeIcon>
-                      <Text fw={500} c="white">No modules available at this level yet</Text>
-                      <Text c="dimmed" size="sm">We're working on creating exciting new content for this level.</Text>
-                      <Button
-                          variant="light"
-                          color={learningPaths[selectedPath].color}
-                          leftSection={<IconTimeline size={16} />}
-                          onClick={() => setSelectedLevel(availableLevels[0])}
-                          mt="md"
-                      >
-                        Return to Level {availableLevels[0]}
-                      </Button>
-                    </Stack>
-                  </Paper>
-              )}
-            </Box>
+                              />
+                            }
+                          >
+                            <Text size="sm" lh={1.5}>{suggestion}</Text>
+                          </List.Item>
+                        ))}
+                      </List>
+                    </Paper>
+                  </motion.div>
+                </SimpleGrid>
+              </Box>
+            </Group>
           </Container>
         </Box>
-        </AppShell.Main>
-      </AppShell>
+      </AppShell.Main>
+    </AppShell>
   );
 };
 

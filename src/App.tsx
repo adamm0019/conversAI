@@ -12,6 +12,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
 import { useSupabaseChat } from './lib/supabase/supabaseClient';
 import { ProfileProvider } from './contexts/ProfileContext'; 
+import { LanguageInspectorExample } from './components/LanguageInspector/ExampleUsage';
 
 function App() {
   const { user, isLoaded } = useUser();
@@ -22,11 +23,13 @@ function App() {
     const initUser = async () => {
       if (user) {
         try {
+          // Initialize Supabase with native Clerk integration
           const isInitialized = await initializeSupabase();
           if (isInitialized) {
             await createUserProfile({
               email: user.primaryEmailAddress?.emailAddress || '',
             });
+            console.log('Supabase initialized and user profile created');
           } else {
             console.log('Running in local-only mode');
             // Continue without Supabase, we'll use localStorage fallbacks
@@ -69,6 +72,10 @@ function App() {
               <Route
                   path="/modules"
                   element={user ? <ModulesPage /> : <Navigate to="/" replace />}
+              />
+              <Route
+                  path="/language-inspector"
+                  element={<LanguageInspectorExample />}
               />
               {/* Legacy route for the original home */}
               <Route

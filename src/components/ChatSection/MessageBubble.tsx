@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, ActionIcon, Tooltip, Collapse, Group, Badge } from '@mantine/core';
 import { IconCopy, IconCheck, IconVolume, IconPlayerPlay, IconPlayerPause, IconMicrophone } from '@tabler/icons-react';
@@ -6,10 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { styles } from './styles'; 
 import { EnhancedConversationItem, ContentItem } from '../../types/conversation'; 
 import { formatDistanceToNowStrict } from 'date-fns';
-import FeedbackMessage from '../FeedbackMessage/FeedbackMessage'; 
+import FeedbackMessage from '../FeedbackMessage/FeedbackMessage';
+import { LanguageInspectorWrapper } from '../LanguageInspector';
 
 interface MessageBubbleProps {
   item: EnhancedConversationItem;
+  enableLanguageInspector?: boolean;
+  targetLanguage?: string; 
+  nativeLanguage?: string;
 }
 
 
@@ -29,7 +32,12 @@ const feedbackVariants = {
   exit: { opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ 
+  item, 
+  enableLanguageInspector = true,
+  targetLanguage = 'Spanish',
+  nativeLanguage = 'English'
+}) => {
   const isAssistant = item.role === 'assistant';
   const [copied, setCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -80,6 +88,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
   const hasFeedback = !!item.feedback;
   const isPronunciationReference = isAssistant && !!item.referenceText;
 
+  // Enable language inspector for assistant messages, or if it's a pronunciation reference
+  const shouldEnableInspector = enableLanguageInspector && 
+    (isAssistant || isPronunciationReference) &&
+    fullText.trim().length > 0 && 
+    item.status !== 'in_progress';
+
   const bubbleStyle = {
     ...styles.messageBubbleBase,
     ...(isAssistant ? styles.messageBubbleAssistant : styles.messageBubbleUser),
@@ -99,6 +113,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
     } : {})
   };
 
+  // Render message content with or without language inspector
+  const renderMessageContent = () => {
+    if (isAssistant && item.status === 'in_progress') {
+      return <>{getDisplayText(item)}<span style={{}}></span></>;
+    }
+
+    return fullText;
+  };
+
   return (
       <motion.div
           variants={bubbleVariants}
@@ -113,11 +136,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ item }) => {
                 Practice Saying This
               </Badge>
           )}
-          <Text style={textStyle} component="div">
-            {isAssistant && item.status === 'in_progress' ? (
-                <> {getDisplayText(item)} <span style={{ }}></span> </>
-            ) : ( getDisplayText(item) )}
-          </Text>
+          
+          {shouldEnableInspector ? (
+            <LanguageInspectorWrapper
+              targetLanguage={targetLanguage}
+              nativeLanguage={nativeLanguage}
+            >
+              <Text style={textStyle} component="div">
+                {renderMessageContent()}
+              </Text>
+            </LanguageInspectorWrapper>
+          ) : (
+            <Text style={textStyle} component="div">
+              {renderMessageContent()}
+            </Text>
+          )}
+          
           {item.translation && ( <Text size="xs" mt="xs" c="dimmed" fs="italic">{item.translation}</Text> )}
           {hasAudio && audioUrl && (
               <Box mt="xs" style={{ position: 'relative' }}>

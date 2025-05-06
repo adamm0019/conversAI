@@ -1,7 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { supabase } from '../lib/supabase/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import { DynamicVariables, sanitizeDynamicVariables } from '../types/dynamicVariables';
+
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+
+function createBrowserClient(supabaseAccessToken: string) {
+  return createClient(supabaseUrl, supabaseKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${supabaseAccessToken}`,
+        apikey: supabaseKey,
+      },
+    },
+  });
+}
 
 export interface UserLanguageProgress {
     language: string;
@@ -102,13 +119,12 @@ const DEFAULT_PROFILE: Omit<UserProfile, 'id' | 'email' | 'firstName' | 'lastNam
 };
 
 export const useUserProfile = () => {
-    const { userId } = useAuth();
+    const { userId, getToken } = useAuth();
     const { user } = useUser();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    
     const createDefaultProfile = useCallback((): UserProfile => {
         if (!userId || !user) {
             throw new Error('User is not authenticated');
@@ -138,58 +154,100 @@ export const useUserProfile = () => {
             setIsLoading(true);
             setError(null);
 
-            // Try to get user profile from Supabase
-            const { data: profileData, error: fetchError } = await supabase
+            const token = await getToken();
+            
+            if (!token) {
+                throw new Error('Failed to get token');
+            }
+
+            const client = createBrowserClient(token);
+            
+            // First, let's check what columns actually exist in the table
+            try {
+                console.log('Checking user_profiles schema...');
+                const { data: tableInfo, error: tableError } = await client
+                    .from('user_profiles')
+                    .select('*')
+                    .limit(1);
+                    
+                if (!tableError && tableInfo) {
+                    console.log('Available columns:', tableInfo.length > 0 ? Object.keys(tableInfo[0]) : 'No data');
+                }
+            } catch (schemaErr) {
+                console.log('Could not check schema:', schemaErr);
+            }
+            
+            
+            // Try to get user profile from Supabase using the right syntax
+            const { data: profileData, error: fetchError } = await client
                 .from('user_profiles')
                 .select('*')
                 .eq('user_id', userId)
                 .single();
 
             if (fetchError) {
-                // If the profile doesn't exist, create a new one
+                
                 if (fetchError.code === 'PGRST116') {
                     const newProfile = createDefaultProfile();
                     
-                    const { error: insertError } = await supabase
-                        .from('user_profiles')
-                        .insert({
-                            user_id: userId,
-                            email: newProfile.email,
-                            first_name: newProfile.firstName,
-                            last_name: newProfile.lastName,
-                            display_name: newProfile.displayName,
-                            subscription_tier: newProfile.subscriptionTier,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                            preferences: newProfile.preferences,
-                            target_languages: newProfile.targetLanguages,
-                            dynamic_variables: newProfile.dynamicVariables
-                        });
-                    
-                    if (insertError) {
-                        throw insertError;
+                    try {
+                        
+                        // Simplified object with only basic fields that must exist
+                        const { error: insertError } = await client
+                            .from('user_profiles')
+                            .insert({
+                                user_id: userId,
+                                email: newProfile.email || '',
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            });
+                        
+                        if (insertError) {
+                            console.error('Error inserting profile:', insertError);
+                            throw insertError;
+                        }
+                        
+                        setProfile(newProfile);
+                        return newProfile;
+                    } catch (insertErr) {
+                        console.error('Failed to create user profile:', insertErr);
+                        throw new Error('Failed to create user profile');
                     }
-                    
-                    setProfile(newProfile);
-                    return newProfile;
                 } else {
                     throw fetchError;
                 }
             }
             
-            // Map the Supabase data format to our UserProfile interface
+            
+            if (!profileData) {
+                throw new Error('No profile data returned');
+            }
+            
+            
+            const dbProfile = profileData as any;
+            
+            // Create a profile with only guaranteed fields first
             const userProfile: UserProfile = {
                 id: userId,
-                email: profileData.email || '',
-                firstName: profileData.first_name || '',
-                lastName: profileData.last_name || '',
-                displayName: profileData.display_name || '',
-                subscriptionTier: profileData.subscription_tier || 'free',
-                joinedAt: profileData.created_at,
-                targetLanguages: profileData.target_languages || DEFAULT_PROFILE.targetLanguages,
-                preferences: profileData.preferences || DEFAULT_PROFILE.preferences,
-                dynamicVariables: profileData.dynamic_variables || DEFAULT_PROFILE.dynamicVariables
+                email: dbProfile.email || '',
+                firstName: '',
+                lastName: '',
+                displayName: 'User',
+                subscriptionTier: 'free',
+                joinedAt: dbProfile.created_at || new Date().toISOString(),
+                targetLanguages: DEFAULT_PROFILE.targetLanguages,
+                preferences: DEFAULT_PROFILE.preferences,
+                dynamicVariables: DEFAULT_PROFILE.dynamicVariables
             };
+            
+            // Then conditionally add any fields that exist
+            if (dbProfile.first_name) userProfile.firstName = dbProfile.first_name;
+            if (dbProfile.last_name) userProfile.lastName = dbProfile.last_name;
+            if (dbProfile.display_name) userProfile.displayName = dbProfile.display_name;
+            if (dbProfile.subscription_tier) userProfile.subscriptionTier = dbProfile.subscription_tier;
+            if (dbProfile.target_languages) userProfile.targetLanguages = dbProfile.target_languages;
+            if (dbProfile.preferences) userProfile.preferences = dbProfile.preferences;
+            if (dbProfile.dynamic_variables) userProfile.dynamicVariables = dbProfile.dynamic_variables;
             
             setProfile(userProfile);
             return userProfile;
@@ -199,7 +257,7 @@ export const useUserProfile = () => {
             setError(errorMessage);
             console.error('Error loading user profile:', error);
             
-            // Fallback to localStorage
+            
             try {
                 const localStorageProfile = localStorage.getItem(`userProfile-${userId}`);
                 if (localStorageProfile) {
@@ -215,7 +273,7 @@ export const useUserProfile = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [userId, createDefaultProfile]);
+    }, [userId, getToken, createDefaultProfile]);
 
     
     useEffect(() => {
@@ -223,44 +281,70 @@ export const useUserProfile = () => {
 
         loadProfile();
         
-        // Set up real-time subscription to profile changes
-        const subscription = supabase
-            .channel('user_profile_changes')
-            .on('postgres_changes', 
-                { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'user_profiles',
-                    filter: `user_id=eq.${userId}`
-                }, 
-                (payload) => {
-                    if (payload.new) {
-                        const profileData = payload.new;
-                        
-                        // Map to UserProfile format
-                        const userProfile: UserProfile = {
-                            id: userId,
-                            email: profileData.email || '',
-                            firstName: profileData.first_name || '',
-                            lastName: profileData.last_name || '',
-                            displayName: profileData.display_name || '',
-                            subscriptionTier: profileData.subscription_tier || 'free',
-                            joinedAt: profileData.created_at,
-                            targetLanguages: profileData.target_languages || DEFAULT_PROFILE.targetLanguages,
-                            preferences: profileData.preferences || DEFAULT_PROFILE.preferences,
-                            dynamicVariables: profileData.dynamic_variables || DEFAULT_PROFILE.dynamicVariables
-                        };
-                        
-                        setProfile(userProfile);
-                    }
-                }
-            )
-            .subscribe();
+        
+        const setupSubscription = async () => {
+            const token = await getToken();
+            
+            if (!token) {
+                console.error('Failed to get token for subscription');
+                return null;
+            }
+
+            const client = createBrowserClient(token);
+            
+            try {
+                const subscription = client
+                    .channel('user_profile_changes')
+                    .on('postgres_changes', 
+                        { 
+                            event: '*', 
+                            schema: 'public', 
+                            table: 'user_profiles',
+                            filter: `user_id=eq.${userId}`
+                        }, 
+                        (payload) => {
+                            if (payload.new) {
+                                console.log('Profile updated from subscription event');
+                                const profileData = payload.new as any;
+                                
+                                // Start with current profile to preserve client-side state
+                                const updatedProfile = { ...profile } as UserProfile;
+                                
+                                // Update only fields that exist in the payload
+                                if (profileData.email) updatedProfile.email = profileData.email;
+                                if (profileData.first_name) updatedProfile.firstName = profileData.first_name;
+                                if (profileData.last_name) updatedProfile.lastName = profileData.last_name;
+                                if (profileData.display_name) updatedProfile.displayName = profileData.display_name;
+                                if (profileData.subscription_tier) updatedProfile.subscriptionTier = profileData.subscription_tier;
+                                if (profileData.target_languages) updatedProfile.targetLanguages = profileData.target_languages;
+                                if (profileData.preferences) updatedProfile.preferences = profileData.preferences;
+                                if (profileData.dynamic_variables) updatedProfile.dynamicVariables = profileData.dynamic_variables;
+                                
+                                setProfile(updatedProfile);
+                            }
+                        }
+                    )
+                    .subscribe((status) => {
+                        console.log('Subscription status:', status);
+                    });
+
+                return subscription;
+            } catch (err) {
+                console.error('Error setting up subscription:', err);
+                return null;
+            }
+        };
+
+        const subscriptionPromise = setupSubscription();
 
         return () => {
-            subscription.unsubscribe();
+            subscriptionPromise.then(subscription => {
+                if (subscription) {
+                    subscription.unsubscribe();
+                }
+            });
         };
-    }, [userId, loadProfile]);
+    }, [userId, getToken]);
 
     
     const updateProfile = useCallback(async (
@@ -272,30 +356,74 @@ export const useUserProfile = () => {
         }
 
         try {
-            // Transform to Supabase format
-            const supabaseUpdates: Record<string, any> = {};
+            const token = await getToken();
             
+            if (!token) {
+                throw new Error('Failed to get token');
+            }
+
+            const client = createBrowserClient(token);
+            
+            
+            // Start with minimal updates that should work
+            const supabaseUpdates: Record<string, any> = {
+                updated_at: new Date().toISOString()
+            };
+            
+            // Only include fields that are likely to exist in the schema
             if (updates.email) supabaseUpdates.email = updates.email;
-            if (updates.firstName) supabaseUpdates.first_name = updates.firstName;
-            if (updates.lastName) supabaseUpdates.last_name = updates.lastName;
-            if (updates.displayName) supabaseUpdates.display_name = updates.displayName;
-            if (updates.subscriptionTier) supabaseUpdates.subscription_tier = updates.subscriptionTier;
-            if (updates.preferences) supabaseUpdates.preferences = updates.preferences;
-            if (updates.targetLanguages) supabaseUpdates.target_languages = updates.targetLanguages;
-            if (updates.dynamicVariables) supabaseUpdates.dynamic_variables = updates.dynamicVariables;
             
-            supabaseUpdates.updated_at = new Date().toISOString();
+            // These might not exist in the schema, only add if we have confirmation they exist
+            try {
+                // Get one record to check schema
+                const { data, error } = await client
+                    .from('user_profiles')
+                    .select('*')
+                    .limit(1);
+                
+                if (!error && data && data.length > 0) {
+                    const schema = data[0];
+                    console.log('Detected schema:', Object.keys(schema));
+                    
+                    // Only add fields that exist in the schema
+                    if ('first_name' in schema && updates.firstName) 
+                        supabaseUpdates.first_name = updates.firstName;
+                    
+                    if ('last_name' in schema && updates.lastName) 
+                        supabaseUpdates.last_name = updates.lastName;
+                    
+                    if ('display_name' in schema && updates.displayName) 
+                        supabaseUpdates.display_name = updates.displayName;
+                    
+                    if ('subscription_tier' in schema && updates.subscriptionTier) 
+                        supabaseUpdates.subscription_tier = updates.subscriptionTier;
+                    
+                    if ('preferences' in schema && updates.preferences) 
+                        supabaseUpdates.preferences = updates.preferences;
+                    
+                    if ('target_languages' in schema && updates.targetLanguages) 
+                        supabaseUpdates.target_languages = updates.targetLanguages;
+                    
+                    if ('dynamic_variables' in schema && updates.dynamicVariables) 
+                        supabaseUpdates.dynamic_variables = updates.dynamicVariables;
+                }
+            } catch (schemaErr) {
+                console.warn('Could not verify schema before update:', schemaErr);
+                // Continue with minimal updates
+            }
             
-            const { error } = await supabase
+            
+            const { error } = await client
                 .from('user_profiles')
                 .update(supabaseUpdates)
                 .eq('user_id', userId);
                 
             if (error) {
+                console.error('Error updating profile in Supabase:', error);
                 throw error;
             }
             
-            // Also update localStorage as fallback
+            
             const updatedProfile = { ...profile, ...updates };
             localStorage.setItem(`userProfile-${userId}`, JSON.stringify(updatedProfile));
             
@@ -306,7 +434,7 @@ export const useUserProfile = () => {
             console.error('Error updating user profile:', error);
             return false;
         }
-    }, [userId, profile]);
+    }, [userId, profile, getToken]);
 
     
     const updateLanguageProgress = useCallback(async (
@@ -319,7 +447,7 @@ export const useUserProfile = () => {
         }
 
         try {
-            // Find the language in the current target languages
+            
             const langIndex = profile.targetLanguages.findIndex(
                 lang => lang.language.toLowerCase() === language.toLowerCase()
             );
@@ -327,7 +455,7 @@ export const useUserProfile = () => {
             let updatedTargetLanguages;
             
             if (langIndex === -1) {
-                // Create a new language entry
+                
                 const newLang: UserLanguageProgress = {
                     language,
                     level: 'beginner',
@@ -341,7 +469,7 @@ export const useUserProfile = () => {
 
                 updatedTargetLanguages = [...profile.targetLanguages, newLang];
             } else {
-                // Update existing language entry
+                
                 updatedTargetLanguages = [...profile.targetLanguages];
                 updatedTargetLanguages[langIndex] = {
                     ...updatedTargetLanguages[langIndex],
@@ -381,7 +509,6 @@ export const useUserProfile = () => {
         }
     }, [profile, updateProfile]);
 
-    
     return {
         profile,
         isLoading,

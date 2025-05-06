@@ -12,6 +12,13 @@ import { sanitizeDynamicVariables } from '../types/dynamicVariables';
 import { useAzurePronunciation, FeedbackType } from '../services/AzurePronunciationService'; 
 import { EnhancedConversationItem } from '../types/conversation'; 
 import { useStreak } from '../hooks/useStreak'; 
+import { Box, rem } from '@mantine/core';
+
+// Color constants to match dashboard styling
+const darkBg = '#141417';
+const cardBg = 'rgba(30, 31, 40, 0.7)';
+const accentBlue = '#4195d3';
+const accentPurple = '#8366d1';
 
 export const Home: React.FC = () => {
     const [selectedMode, setSelectedMode] = useState('tutor'); 
@@ -328,7 +335,14 @@ export const Home: React.FC = () => {
         <AppShell
             header={{ height: 60 }}
             padding={0}
-            style={{ position: 'relative', height: '100vh', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'var(--mantine-color-dark-9)' }}
+            style={{
+                position: 'relative',
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                backgroundColor: darkBg,
+            }}
         >
             <LoadingOverlay visible={profileLoading && !user} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
 
@@ -339,31 +353,75 @@ export const Home: React.FC = () => {
                 showSettings={true}
             />
 
-            {/* Main content area below the fixed header */}
-            <AppShell.Main style={{ paddingTop: '60px', flex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <SignedIn>
-                    <EnhancedChatSection
-                        connectionState={connectionState}
-                        isThinking={isThinking}
-                        isRecording={isRecording}
-                        isSpeaking={isSpeaking}
-                        audioLevel={clientAudioLevel}
-                        connectionError={error}
-                        onStartRecording={handleStartRecording}
-                        onStopRecording={handleStopRecording}
-                        onDisconnect={handleDisconnect}
-                        onConnect={handleConnect}
-                        onSendMessage={handleSendMessage}
-                        onNewChat={handleNewChat}
-                        onSelectChat={handleSelectChat}
-                        onCloseChat={handleSelectChat}
-                        messages={messages}
-                        conversationId={conversationId}
-                    />
-                </SignedIn>
-                <SignedOut>
-                    <AuthOverlay />
-                </SignedOut>
+            <AppShell.Main style={{ 
+                height: 'calc(100vh - 60px)', 
+                backgroundColor: darkBg,
+                backgroundImage: 'radial-gradient(circle at top right, rgba(80, 100, 240, 0.08) 0%, transparent 80%)',
+                overflowY: 'auto'
+            }}>
+                {/* Decorative background elements */}
+                <Box
+                    style={{
+                        position: 'absolute',
+                        top: rem(-80),
+                        right: rem(-80),
+                        width: rem(400),
+                        height: rem(400),
+                        borderRadius: '50%',
+                        background: `radial-gradient(circle, rgba(70, 90, 180, 0.05) 0%, transparent 70%)`,
+                        zIndex: 0,
+                        pointerEvents: 'none'
+                    }}
+                />
+
+                <Box
+                    style={{
+                        position: 'absolute',
+                        bottom: rem(-100),
+                        left: rem(-100),
+                        width: rem(300),
+                        height: rem(300),
+                        borderRadius: '50%',
+                        background: `radial-gradient(circle, rgba(70, 90, 180, 0.05) 0%, transparent 70%)`,
+                        zIndex: 0,
+                        pointerEvents: 'none'
+                    }}
+                />
+
+                <Box
+                    py="xl"
+                    style={{
+                        position: 'relative',
+                        zIndex: 1,
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
+                >
+                    <SignedIn>
+                        <EnhancedChatSection
+                            connectionState={connectionState}
+                            isThinking={isThinking}
+                            isRecording={isRecording}
+                            isSpeaking={isSpeaking}
+                            audioLevel={clientAudioLevel}
+                            connectionError={error}
+                            onStartRecording={handleStartRecording}
+                            onStopRecording={handleStopRecording}
+                            onDisconnect={handleDisconnect}
+                            onConnect={handleConnect}
+                            onSendMessage={handleSendMessage}
+                            onNewChat={handleNewChat}
+                            onSelectChat={handleSelectChat}
+                            onCloseChat={handleSelectChat}
+                            messages={messages}
+                            conversationId={conversationId}
+                        />
+                    </SignedIn>
+                    <SignedOut>
+                        <AuthOverlay />
+                    </SignedOut>
+                </Box>
             </AppShell.Main>
         </AppShell>
     );

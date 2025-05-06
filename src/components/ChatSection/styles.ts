@@ -56,11 +56,8 @@ export const styles = {
         width: '100%',
         position: 'relative' as const,
         overflow: 'hidden',
-        backgroundColor: 'var(--mantine-color-dark-9)',
-        backgroundImage: `
-      radial-gradient(circle at 100% 100%, rgba(var(--mantine-color-teal-9-rgb), 0.1) 0%, transparent 40%),
-      radial-gradient(circle at 0% 0%, rgba(var(--mantine-color-blue-9-rgb), 0.08) 0%, transparent 40%)
-    `,
+        backgroundColor: 'transparent',
+        backgroundImage: 'none',
         backgroundAttachment: 'fixed',
     },
 
@@ -75,6 +72,7 @@ export const styles = {
         '&::-webkit-scrollbar-track': {background: 'transparent'},
         '&::-webkit-scrollbar-thumb': {background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px'},
         '&::-webkit-scrollbar-thumb:hover': {background: 'rgba(255, 255, 255, 0.2)'},
+        backgroundColor: 'transparent',
     },
 
     messageContainer: {
@@ -148,7 +146,7 @@ export const styles = {
         paddingLeft: 'var(--mantine-spacing-md)', paddingRight: 'var(--mantine-spacing-md)',
         '&::before': {
             content: '""', position: 'absolute', bottom: 'calc(100% - 40px)', left: 0, right: 0, height: '80px',
-            background: 'linear-gradient(to top, rgba(var(--mantine-color-dark-8-rgb), 0.95), transparent)',
+            background: 'linear-gradient(to top, rgba(20, 20, 23, 0.7), transparent)',
             pointerEvents: 'none', zIndex: -1,
         },
     },
@@ -157,10 +155,10 @@ export const styles = {
         margin: '0 auto',
         position: 'relative',
         padding: '8px 8px 8px 16px',
-        backgroundColor: 'rgba(var(--mantine-color-dark-5-rgb), 0.6)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(30, 31, 40, 0.7)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
         borderRadius: '28px',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
         display: 'flex',
@@ -187,7 +185,10 @@ export const styles = {
         justifyContent: 'center',
         textAlign: 'center' as const,
         padding: '32px',
-        minHeight: 'calc(100vh - 250px)'
+        minHeight: 'calc(100vh - 250px)',
+        backgroundColor: 'transparent',
+        position: 'relative',
+        zIndex: 5
     },
     emptyStateIconWrapper: {
         width: 72,

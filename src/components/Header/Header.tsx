@@ -6,7 +6,7 @@ import {
 import {
     IconBrain, IconSettings, IconHistory, IconMenu2, IconRobot, IconBooks,
     IconSchool, IconFriends, IconDeviceGamepad2, IconLayoutDashboard, IconFlame,
-    IconLanguage, IconSun, IconMoon
+    IconLanguage, IconSun, IconMoon, IconVocabulary
 } from '@tabler/icons-react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
@@ -154,7 +154,28 @@ export const Header: React.FC<HeaderProps> = ({
                 </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-                {/* Menu content here */}
+                <Link to="/dashboard" style={{ textDecoration: 'none' }}>
+                    <Menu.Item leftSection={<IconLayoutDashboard size={16} />}>
+                        Dashboard
+                    </Menu.Item>
+                </Link>
+                <Link to="/modules" style={{ textDecoration: 'none' }}>
+                    <Menu.Item leftSection={<IconBooks size={16} />}>
+                        Modules
+                    </Menu.Item>
+                </Link>
+                <Link to="/games" style={{ textDecoration: 'none' }}>
+                    <Menu.Item leftSection={<IconDeviceGamepad2 size={16} />}>
+                        Language Games
+                    </Menu.Item>
+                </Link>
+                <Link to="/language-inspector" style={{ textDecoration: 'none' }}>
+                    <Menu.Item leftSection={<IconVocabulary size={16} />}>
+                        Language Inspector
+                    </Menu.Item>
+                </Link>
+                <Menu.Divider />
+                {/* Other menu items */}
             </Menu.Dropdown>
         </Menu>
     );
@@ -209,10 +230,31 @@ export const Header: React.FC<HeaderProps> = ({
                         <Box visibleFrom="sm">
                             <Group gap="xs">
                                 <StreakDisplay />
+                                <Tooltip label="Dashboard" position="bottom">
+                                    <Link to="/dashboard">
+                                        <ActionIcon variant="subtle" color="gray" size="lg">
+                                            <IconLayoutDashboard stroke={1.5} />
+                                        </ActionIcon>
+                                    </Link>
+                                </Tooltip>
+                                <Tooltip label="Modules" position="bottom">
+                                    <Link to="/modules">
+                                        <ActionIcon variant="subtle" color="gray" size="lg">
+                                            <IconBooks stroke={1.5} />
+                                        </ActionIcon>
+                                    </Link>
+                                </Tooltip>
                                 <Tooltip label="Language Games" position="bottom">
                                     <Link to="/games">
                                         <ActionIcon variant="subtle" color="gray" size="lg">
                                             <IconDeviceGamepad2 stroke={1.5} />
+                                        </ActionIcon>
+                                    </Link>
+                                </Tooltip>
+                                <Tooltip label="Language Inspector" position="bottom">
+                                    <Link to="/language-inspector">
+                                        <ActionIcon variant="subtle" color="gray" size="lg">
+                                            <IconVocabulary stroke={1.5} />
                                         </ActionIcon>
                                     </Link>
                                 </Tooltip>

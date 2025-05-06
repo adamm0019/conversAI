@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useState, useEffect, useCallback } from 'react';
 import { EnhancedConversationItem } from '../../types/conversation';
 
-// Initialize Supabase client
+// Initialize Supabase client with basic config
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
@@ -11,8 +11,22 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('Missing Supabase environment variables');
 }
 
+// Create a basic client for non-authenticated operations
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// This will be used by components that need to access authenticated endpoints
+export function createBrowserClient(supabaseAccessToken: string) {
+  return createClient(supabaseUrl, supabaseKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${supabaseAccessToken}`,
+        apikey: supabaseKey,
+      },
+    },
+  });
+}
+
+// Chat interface definition
 export interface Chat {
   id: string;
   title: string;
@@ -40,6 +54,33 @@ export const useSupabaseChat = () => {
     }
   });
   const [isSupabaseInitialized, setIsSupabaseInitialized] = useState(false);
+  
+  // Helper function to get token and create client
+  const getAuthClient = useCallback(async () => {
+    if (!userId) return null;
+    
+    try {
+      // Use the default session token instead of a specific template
+      const token = await getToken();
+      
+      if (!token) {
+        console.log('No session token available from Clerk');
+        return null;
+      }
+      
+      return createClient(supabaseUrl, supabaseKey, {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: supabaseKey,
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error creating Supabase client:', error);
+      return null;
+    }
+  }, [userId, getToken]);
 
   // Initialize Supabase to work with Clerk
   const initializeSupabase = async () => {
@@ -49,28 +90,32 @@ export const useSupabaseChat = () => {
         return false;
       }
       
-      // Get JWT token from Clerk
-      const token = await getToken({ template: 'supabase' });
+      // Get default session token - no template needed
+      const token = await getToken();
       
-      if (token) {
-        // Set Supabase auth with JWT token
-        const { error } = await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: '',
-        });
-        
-        if (error) {
-          console.error('Supabase auth error:', error);
-          return false;
-        }
-        
-        console.log('Supabase initialized successfully');
-        setIsSupabaseInitialized(true);
-        return true;
+      if (!token) {
+        console.log('No session token available from Clerk, running in local mode');
+        return false;
       }
       
-      console.log('No token, running in local mode');
-      return false;
+      // Create a test client to verify the token works
+      const testClient = createBrowserClient(token);
+      
+      // Test the authentication with a simple query that doesn't rely on UUIDs
+      const { error } = await testClient
+        .from('chats')
+        .select('count')
+        .eq('user_id', userId)
+        .limit(1);
+      
+      if (error) {
+        console.error('Supabase auth error:', error);
+        return false;
+      }
+      
+      console.log('Supabase initialized successfully with Clerk token');
+      setIsSupabaseInitialized(true);
+      return true;
     } catch (error) {
       console.error('Supabase initialization error:', error);
       return false;
@@ -86,14 +131,42 @@ export const useSupabaseChat = () => {
         return null;
       }
       
-      const { data, error } = await supabase
+      // Get default session token
+      const token = await getToken();
+      
+      if (!token) {
+        console.log('No session token available from Clerk');
+        return null;
+      }
+      
+      // Create authenticated client
+      const client = createBrowserClient(token);
+
+      // First check if the profile already exists
+      const { data: existingProfile, error: checkError } = await client
         .from('user_profiles')
-        .upsert({
-          user_id: userId,
-          email: userData.email || '',
-          created_at: new Date(),
-          updated_at: new Date()
-        }, { onConflict: 'user_id' })
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (!checkError && existingProfile) {
+        console.log('User profile already exists, not creating a new one');
+        return existingProfile;
+      }
+      
+      // Create a minimal insert with only required fields
+      const insertData = {
+        user_id: userId,  // This is a TEXT field in the database
+        email: userData.email || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Creating new user profile with user_id:', userId);
+      
+      const { data, error } = await client
+        .from('user_profiles')
+        .insert(insertData)
         .select()
         .single();
       
@@ -112,7 +185,7 @@ export const useSupabaseChat = () => {
   const createNewChat = async (firstMessage?: EnhancedConversationItem): Promise<string> => {
     try {
       const now = new Date();
-      const chatData = {
+      const chatData: Chat = {
         id: `local-${Date.now()}`,
         title: 'New Chat',
         subtitle: firstMessage
@@ -121,13 +194,11 @@ export const useSupabaseChat = () => {
                 : 'New conversation')
             : 'Empty conversation',
         timestamp: now,
-        created_at: now,
-        updated_at: now,
         unread: 0,
         isArchived: false,
         messages: firstMessage ? [{
           ...firstMessage,
-          timestamp: now.toISOString(),
+          timestamp: now.getTime(),
           created_at: now.toISOString()
         }] : [],
         userId: userId || 'local-user',
@@ -141,8 +212,13 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized) {
         try {
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
           // 1. Insert into chats table
-          const { data: chatRecord, error: chatError } = await supabase
+          const { data: chatRecord, error: chatError } = await authClient
             .from('chats')
             .insert({
               title: chatData.title,
@@ -167,7 +243,7 @@ export const useSupabaseChat = () => {
               ? firstMessage.content 
               : JSON.stringify(firstMessage.content);
                 
-            const { error: messageError } = await supabase
+            const { error: messageError } = await authClient
               .from('messages')
               .insert({
                 chat_id: chatRecord.id,
@@ -208,12 +284,17 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized && !chatId.startsWith('local-')) {
         try {
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
           // 1. Insert message into messages table
           const messageContent = typeof message.content === 'string' 
             ? message.content 
             : JSON.stringify(message.content);
           
-          const { error: messageError } = await supabase
+          const { error: messageError } = await authClient
             .from('messages')
             .insert({
               chat_id: chatId,
@@ -227,12 +308,12 @@ export const useSupabaseChat = () => {
           }
           
           // 2. Update chat record with last message and timestamp
-          const { error: chatError } = await supabase
+          const { error: chatError } = await authClient
             .from('chats')
             .update({
               last_message: messageContent.substring(0, 100),
               updated_at: now,
-              unread: message.role === 'assistant' ? supabase.sql`unread + 1` : 0
+              unread: message.role === 'assistant' ? 1 : 0 // Increment unread count
             })
             .eq('id', chatId);
             
@@ -250,9 +331,14 @@ export const useSupabaseChat = () => {
       // Local storage fallback
       const updatedChats = localChats.map(chat => {
         if (chat.id === chatId) {
+          const updatedMessage = {
+            ...message,
+            timestamp: Date.now(),
+            created_at: now
+          };
           return {
             ...chat,
-            messages: [...chat.messages, { ...message, timestamp: now, created_at: now }],
+            messages: [...chat.messages, updatedMessage],
             lastMessage: typeof message.content === 'string' ? message.content : 'Message sent',
             updated_at: new Date(),
             timestamp: new Date(),
@@ -274,20 +360,35 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized) {
         try {
-          // Fetch chats from Supabase
-          const { data: chatsData, error: chatsError } = await supabase
+          const token = await getToken();
+          
+          if (!token) {
+            throw new Error('No session token available from Clerk');
+          }
+          
+          // Create authenticated client
+          const client = createBrowserClient(token);
+          
+          // Get chats directly using the clerk user_id (text field)
+          const { data: chatsData, error: chatsError } = await client
             .from('chats')
             .select('*')
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
           
           if (chatsError) {
-            throw chatsError;
+            console.error('Failed to fetch chats:', chatsError);
+            return [];
+          }
+          
+          if (!chatsData || chatsData.length === 0) {
+            console.log('No chats found for user');
+            return [];
           }
           
           // For each chat, fetch its messages
           const chatsWithMessages = await Promise.all(chatsData.map(async (chat) => {
-            const { data: messagesData, error: messagesError } = await supabase
+            const { data: messagesData, error: messagesError } = await client
               .from('messages')
               .select('*')
               .eq('chat_id', chat.id)
@@ -314,7 +415,7 @@ export const useSupabaseChat = () => {
               id: msg.id,
               role: msg.role,
               content: msg.content,
-              timestamp: msg.created_at,
+              timestamp: Date.parse(msg.created_at),
               created_at: msg.created_at,
               // Add other required EnhancedConversationItem fields
               object: 'chat.completion.chunk',
@@ -323,6 +424,7 @@ export const useSupabaseChat = () => {
             }));
             
             return {
+              ...chat,
               id: chat.id,
               title: chat.title,
               subtitle: chat.subtitle,
@@ -335,7 +437,7 @@ export const useSupabaseChat = () => {
             };
           }));
           
-          return chatsWithMessages as Chat[];
+          return chatsWithMessages;
         } catch (error) {
           console.warn('Supabase query failed, falling back to local storage:', error);
           // Continue with local storage fallback
@@ -358,28 +460,42 @@ export const useSupabaseChat = () => {
         getUserChats().then(chats => {
           callback(chats);
         });
-        
+
         // Set up real-time subscription
-        const subscription = supabase
-          .channel('chats_changes')
-          .on('postgres_changes', 
-            { 
-              event: '*', 
-              schema: 'public', 
-              table: 'chats',
-              filter: `user_id=eq.${userId}`
-            }, 
-            () => {
-              // Re-fetch chats when anything changes
-              getUserChats().then(chats => {
-                callback(chats);
-              });
-            }
-          )
-          .subscribe();
-        
-        return () => {
-          subscription.unsubscribe();
+        const setupSubscription = async () => {
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+
+          const subscription = authClient
+            .channel('chats_changes')
+            .on('postgres_changes', 
+              { 
+                event: '*', 
+                schema: 'public', 
+                table: 'chats',
+                filter: `user_id=eq.${userId}`
+              }, 
+              () => {
+                // Re-fetch chats when anything changes
+                getUserChats().then(chats => {
+                  callback(chats);
+                });
+              }
+            )
+            .subscribe();
+          
+          return subscription;
+        };
+
+        const subscription = setupSubscription();
+
+        return async () => {
+          const sub = await subscription;
+          if (sub) {
+            sub.unsubscribe();
+          }
         };
       } catch (error) {
         console.warn('Failed to create Supabase subscription, using local chats:', error);
@@ -413,9 +529,16 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized && !chatId.startsWith('local-')) {
         try {
-          const { error } = await supabase
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
+          const { error } = await authClient
             .from('chats')
-            .update({ is_archived: true })
+            .update({
+              is_archived: true
+            })
             .eq('id', chatId);
             
           if (error) {
@@ -445,9 +568,16 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized && !chatId.startsWith('local-')) {
         try {
-          const { error } = await supabase
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
+          const { error } = await authClient
             .from('chats')
-            .update({ unread: 0 })
+            .update({
+              unread: 0
+            })
             .eq('id', chatId);
             
           if (error) {
@@ -477,8 +607,13 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized && !chatId.startsWith('local-')) {
         try {
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
           // First delete all messages
-          const { error: messagesError } = await supabase
+          const { error: messagesError } = await authClient
             .from('messages')
             .delete()
             .eq('chat_id', chatId);
@@ -488,7 +623,7 @@ export const useSupabaseChat = () => {
           }
           
           // Then delete the chat
-          const { error: chatError } = await supabase
+          const { error: chatError } = await authClient
             .from('chats')
             .delete()
             .eq('id', chatId);
@@ -518,9 +653,14 @@ export const useSupabaseChat = () => {
       // Try to use Supabase if initialized
       if (userId && isSupabaseInitialized && !chatId.startsWith('local-')) {
         try {
-          const { error } = await supabase
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
+          const { error } = await authClient
             .from('chats')
-            .update({ 
+            .update({
               title: newTitle,
               updated_at: new Date().toISOString()
             })

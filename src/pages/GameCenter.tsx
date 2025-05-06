@@ -193,7 +193,7 @@ export const GameCenter: React.FC = () => {
             showSettings={true} 
         />
 
-        <AppShell.Main>
+        <AppShell.Main style={{ height: 'calc(100vh - 60px)', backgroundColor: '#1A1B1E', overflowY: 'auto' }}>
           <Container size="xl" py="xl">
             <Stack>
               <div>
