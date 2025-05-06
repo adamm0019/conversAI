@@ -9,7 +9,7 @@ import {
     IconPlus, IconTrash, IconX
 } from '@tabler/icons-react';
 import {styles} from './styles'; 
-import {useSupabaseChat, Chat} from '../../lib/supabase/supabaseClient'; 
+import {useFirebaseChatService, Chat} from '../../services/FirebaseChatService'; 
 import {formatDistanceToNow, isToday, isYesterday, format} from 'date-fns';
 import {useDebouncedState} from '@mantine/hooks';
 import {notifications} from '@mantine/notifications';
@@ -201,7 +201,7 @@ export const ChatShelf: React.FC<ChatShelfProps> = React.memo(({
 
     
     const theme = useMantineTheme();
-    const {subscribeToChats, deleteChat, renameChat} = useSupabaseChat();
+    const {subscribeToChats, deleteChat, renameChat} = useFirebaseChatService();
 
     
     useEffect(() => {

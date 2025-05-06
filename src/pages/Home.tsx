@@ -1,4 +1,4 @@
-import { AppShell, LoadingOverlay } from '@mantine/core';
+import { AppShell } from '@mantine/core';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useWebSocketConversation } from '../hooks/useWebSocketConversation'; 
@@ -26,24 +26,39 @@ export const Home: React.FC = () => {
     const { profile, isLoading: profileLoading, getDynamicVariables } = useProfile();
     const { updateStreak } = useStreak(); 
 
-    
+    // Client audio level state
     const [clientAudioLevel, setClientAudioLevel] = useState(0);
 
-    
+    // Pronunciation mode state
     const [isPronunciationMode, setIsPronunciationMode] = useState(false);
     const [currentReferenceText, setCurrentReferenceText] = useState<string | null>(null);
 
-    
+    // Store the last audio data for pronunciation assessment
     const lastAudioDataRef = useRef<ArrayBuffer | null>(null);
 
-    
+    // Initialize Azure pronunciation service
     const {
         assessPronunciation,
         generateLanguageFeedback,
         generateAchievementFeedback
     } = useAzurePronunciation();
 
-    
+    const getDefaultDynamicVariables = useCallback(() => {
+        const defaults = {
+            user_name: user?.firstName || 'there',
+            subscription_tier: 'standard',
+            language_level: 'beginner',
+            target_language: 'Spanish',
+            days_streak: 0,
+            vocabulary_mastered: 0,
+            grammar_mastered: 0,
+            total_progress: 0
+        };
+        
+        return sanitizeDynamicVariables({ ...defaults, ...(profile?.dynamicVariables || {}) });
+    }, [user, profile]);
+
+    // Initialize WebSocket conversation with dynamic variables
     const {
         connectionState,
         isThinking,
@@ -62,7 +77,7 @@ export const Home: React.FC = () => {
         updateDynamicVariables,
     } = useWebSocketConversation({
         agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'JLN0MSwr6AtVxCQM32XU', 
-        dynamicVariables: profile ? sanitizeDynamicVariables(getDynamicVariables()) : {},
+        dynamicVariables: getDefaultDynamicVariables(),
         autoReconnect: true,
         onMessageReceived: (message) => {
             console.log("Message received:", message);
@@ -71,16 +86,16 @@ export const Home: React.FC = () => {
         },
     });
 
-    
+    // Update dynamic variables when profile loads or changes
     useEffect(() => {
         if (profile && !profileLoading && connectionState === ConnectionState.CONNECTED) {
-            const variables = sanitizeDynamicVariables(getDynamicVariables());
+            const variables = sanitizeDynamicVariables(profile.dynamicVariables || {});
             console.log("Home: Updating dynamic variables:", variables);
             updateDynamicVariables(variables);
         }
-    }, [profile, profileLoading, connectionState, getDynamicVariables, updateDynamicVariables]);
+    }, [profile, profileLoading, connectionState, updateDynamicVariables]);
 
-    
+    // Ensure connection is established
     const ensureConnected = useCallback(async (): Promise<boolean> => {
         if (connectionState !== ConnectionState.CONNECTED) {
             console.log("Home: Not connected, attempting to connect...");
@@ -96,57 +111,40 @@ export const Home: React.FC = () => {
         return connectionState === ConnectionState.CONNECTED;
     }, [connectionState, startConversation]);
 
-    
+    // Check if message is requesting pronunciation practice
     const checkForPronunciationPrompt = useCallback((message: EnhancedConversationItem) => {
         if (message.role !== 'assistant') return;
 
-        
+        // Get message text
         const text = typeof message.content === 'string'
             ? message.content
             : message.formatted?.text || '';
 
-        
+        // Check if this is a practice prompt
         const isPracticePrompt = /repeat after me|practice saying|pronounce this|try saying/i.test(text);
 
         if (isPracticePrompt) {
-            
+            // Try to extract the text to practice
             const promptRegex = /(["'])(.*?)\1/; 
             const match = text.match(promptRegex);
 
             if (match && match[2]) {
-                
+                // Found reference text
                 const referenceText = match[2].trim();
                 console.log("Found reference text for pronunciation practice:", referenceText);
 
-                
+                // Set pronunciation mode
                 setCurrentReferenceText(referenceText);
                 setIsPronunciationMode(true);
-
-                
-                const referenceMessage: EnhancedConversationItem = {
-                    id: Date.now().toString(),
-                    object: 'chat.completion',
-                    role: 'assistant',
-                    type: 'message',
-                    content: referenceText,
-                    formatted: {
-                        text: referenceText,
-                    },
-                    created_at: new Date().toISOString(),
-                    timestamp: Date.now(),
-                    status: 'completed',
-                    referenceText: referenceText, 
-                    language: profile?.dynamicVariables?.target_language?.toString().toLowerCase() || 'en-US'
-                };
             }
         }
     }, [profile?.dynamicVariables?.target_language]);
 
-    
+    // Connection management handlers
     const handleConnect = useCallback(async (): Promise<void> => { await ensureConnected(); }, [ensureConnected]);
     const handleDisconnect = useCallback(async (): Promise<void> => { endConversation(); }, [endConversation]);
 
-    
+    // Recording handlers
     const handleStartRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Attempting to start recording");
         const connected = await ensureConnected();
@@ -166,22 +164,22 @@ export const Home: React.FC = () => {
         }
     }, [ensureConnected, startRecording, updateStreak]);
 
-    
+    // Stop recording handler
     const handleStopRecording = useCallback(async (): Promise<void> => {
         console.log("Home: Stopping recording");
         stopRecording();
 
-        
+        // Handle pronunciation mode
         if (isPronunciationMode && currentReferenceText && lastAudioDataRef.current) {
             try {
                 console.log("Assessing pronunciation...");
 
-                
+                // Get user language for pronunciation assessment
                 const userLanguage = profile?.dynamicVariables?.target_language?.toString().toLowerCase() || 'en-US';
                 
                 const locale = userLanguage.includes('-') ? userLanguage : `${userLanguage}-${userLanguage.toUpperCase()}`;
 
-                
+                // Assess pronunciation
                 const { result, feedback } = await assessPronunciation(
                     lastAudioDataRef.current,
                     currentReferenceText,
@@ -191,7 +189,7 @@ export const Home: React.FC = () => {
                 console.log("Pronunciation assessment result:", result);
                 console.log("Feedback:", feedback);
 
-                
+                // Reset pronunciation mode
                 setIsPronunciationMode(false);
                 setCurrentReferenceText(null);
 
@@ -203,27 +201,27 @@ export const Home: React.FC = () => {
                     color: 'red'
                 });
 
-                
+                // Reset pronunciation mode
                 setIsPronunciationMode(false);
                 setCurrentReferenceText(null);
             }
         }
     }, [stopRecording, isPronunciationMode, currentReferenceText, profile, assessPronunciation]);
 
-    
+    // Message sending handler
     const handleSendMessage = useCallback(async (message: string, callback?: (response: string) => void): Promise<void> => {
         console.log("Home: Sending message:", message);
         const connected = await ensureConnected();
         if (connected) {
             try {
-                
+                // Update streak when user sends a message
                 updateStreak();
                 
-                
+                // Generate feedback for demo purposes
                 let feedbackType: 'grammar' | 'vocabulary' = Math.random() > 0.5 ? 'grammar' : 'vocabulary';
                 const feedback = generateLanguageFeedback(message, feedbackType);
 
-                
+                // Create a custom message with feedback
                 const customMessage: EnhancedConversationItem = {
                     id: Date.now().toString(),
                     object: 'chat.completion',
@@ -237,11 +235,11 @@ export const Home: React.FC = () => {
                     feedback 
                 };
 
-                
+                // Send message through the WebSocket service
                 const result = await sendMessage(message, callback);
                 console.log("Message sent via hook, result:", result);
 
-                
+                // Handle failure
                 if (result === false) { 
                     notifications.show({ title: 'Message Error', message: 'Failed to send message.', color: 'red' });
                 }
@@ -261,11 +259,11 @@ export const Home: React.FC = () => {
             await handleDisconnect(); 
         }
 
-        
+        // Reset pronunciation mode
         setIsPronunciationMode(false);
         setCurrentReferenceText(null);
 
-        
+        // Update streak when starting a new chat
         updateStreak();
     }, [connectionState, handleDisconnect, updateStreak]);
 
@@ -276,12 +274,12 @@ export const Home: React.FC = () => {
         notifications.show({ message: `Loading chat ${chatId}... (Implementation Pending)`, color: 'blue' });
     }, [updateStreak]); 
 
-    
+    // Process audio data for later use
     const processAudioData = useCallback((audioData: ArrayBuffer) => {
         lastAudioDataRef.current = audioData;
     }, []);
 
-    
+    // Clean up WebSocket connection when component unmounts
     useEffect(() => {
         return () => {
             console.log("Home: Cleaning up WebSocket connection on unmount");
@@ -289,7 +287,7 @@ export const Home: React.FC = () => {
         };
     }, [endConversation]);
 
-    
+    // Update audio levels for visualization
     useEffect(() => {
         let animationFrame: number | null = null;
         
@@ -311,16 +309,16 @@ export const Home: React.FC = () => {
         };
     }, [isRecording, getInputAudioLevel]); 
 
-    
+    // Check for streak achievements
     useEffect(() => {
         if (profile?.dynamicVariables?.days_streak) {
             const streakValue = Number(profile.dynamicVariables.days_streak);
 
-            
+            // Show notifications for milestone streaks
             if (streakValue === 3 || streakValue === 7 || streakValue === 14 || streakValue === 30) {
                 const streakFeedback = generateAchievementFeedback('streak', streakValue);
 
-                
+                // Display notification
                 notifications.show({
                     title: streakFeedback.message,
                     message: streakFeedback.details || '',
@@ -344,8 +342,6 @@ export const Home: React.FC = () => {
                 backgroundColor: darkBg,
             }}
         >
-            <LoadingOverlay visible={profileLoading && !user} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
-
             <Header
                 selectedMode={selectedMode}
                 onModeChange={setSelectedMode}

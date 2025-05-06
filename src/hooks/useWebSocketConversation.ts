@@ -103,17 +103,23 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
         if (conversationRef.current) {
             try {
                 // Only attempt to end session if connection is open
-                if (conversationRef.current.isOpen && conversationRef.current.isOpen()) {
+                // Add safer checks to prevent errors
+                if (conversationRef.current.isOpen && 
+                    typeof conversationRef.current.isOpen === 'function' && 
+                    conversationRef.current.isOpen()) {
                     console.log("Properly closing WebSocket connection");
                     conversationRef.current.endSession().catch(err => {
                         console.warn('Error ending session:', err);
                     });
+                } else {
+                    console.log("WebSocket connection already closed or not fully initialized");
                 }
             } catch (error) {
                 console.warn('Error checking connection state or ending session:', error);
+            } finally {
+                // Always clear the reference
+                conversationRef.current = null;
             }
-            
-            conversationRef.current = null;
         }
 
         if (isMountedRef.current) {
@@ -145,7 +151,10 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
         
         try {
             // Check if there's already an active connection
-            if (conversationRef.current && conversationRef.current.isOpen && conversationRef.current.isOpen()) {
+            if (conversationRef.current && 
+                conversationRef.current.isOpen && 
+                typeof conversationRef.current.isOpen === 'function' && 
+                conversationRef.current.isOpen()) {
                 console.log("WebSocket connection already exists and is open");
                 return true;
             }
@@ -200,6 +209,12 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
                         isRecording: false,
                         isThinking: false
                     }));
+                    
+                    // Ensure we clear the conversation reference on disconnection
+                    if (conversationRef.current) {
+                        console.log("Clearing conversation reference on disconnect");
+                        conversationRef.current = null;
+                    }
                 },
                 onMessage: ({ message, source }) => {
                     if (!isMountedRef.current) return;
@@ -403,7 +418,18 @@ export const useWebSocketConversation = (options: WebSocketHookOptions) => {
     useEffect(() => {
         return () => {
             console.log("Component unmounting, cleaning up WebSocket resources");
-            closeConnection();
+            // Use a more thorough cleanup approach
+            try {
+                closeConnection();
+                
+                // Extra safety: ensure all refs are cleared
+                conversationRef.current = null;
+                reconnectTimeoutRef.current = null;
+                isConnectingRef.current = false;
+                responseCallbackRef.current = null;
+            } catch (error) {
+                console.error("Error during cleanup:", error);
+            }
         };
     }, [closeConnection]);
 

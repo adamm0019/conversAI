@@ -1,9 +1,10 @@
-import { Box, Paper, Text, Button, Stack } from '@mantine/core';
+import { Box, Paper, Text, Button, Stack, Group } from '@mantine/core';
 import { createStyles } from '@mantine/styles'
 import darkModeLogo from '../../../src/assets/conversai-logo-dark.png';
 import lightModeLogo from '../../../src/assets/conversai-logo.png';
 import { SignInButton } from "@clerk/clerk-react";
 import { useMantineColorScheme } from '@mantine/core';
+import { useState, useEffect } from 'react';
 
 const useStyles = createStyles((theme: { radius: { lg: any; md: any; }; white: any; spacing: { xs: any; lg: any; }; colors: { gray: any[]; }; }) => ({
   overlay: {
@@ -63,6 +64,18 @@ const useStyles = createStyles((theme: { radius: { lg: any; md: any; }; white: a
       transform: 'translateY(-2px)',
     },
   },
+  emergencyButton: {
+    background: 'rgba(255, 255, 255, 0.1)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    borderRadius: theme.radius.md,
+    color: theme.colors.gray[3],
+    fontSize: '12px',
+    padding: '4px 8px',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      background: 'rgba(255, 255, 255, 0.2)',
+    },
+  },
   logo: {
     width: '180px',
     height: 'auto',
@@ -77,6 +90,12 @@ const useStyles = createStyles((theme: { radius: { lg: any; md: any; }; white: a
 export const AuthOverlay = () => {
   const { classes } = useStyles();
   const { colorScheme } = useMantineColorScheme();
+  const [visible, setVisible] = useState(true);
+  const [showEmergency, setShowEmergency] = useState(true);
+  
+  if (!visible) {
+    return null;
+  }
 
   return (
     <Box className={classes.overlay}>
@@ -95,6 +114,20 @@ export const AuthOverlay = () => {
               Sign In / Sign Up
             </Button>
           </SignInButton>
+          
+          {showEmergency && (
+            <Group mt="xl" justify="center">
+              <Button 
+                variant="subtle" 
+                size="xs" 
+                color="gray" 
+                onClick={() => setVisible(false)}
+                className={classes.emergencyButton}
+              >
+                Skip sign-in and continue as guest
+              </Button>
+            </Group>
+          )}
         </Stack>
       </Paper>
     </Box>

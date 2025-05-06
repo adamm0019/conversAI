@@ -142,7 +142,9 @@ export class LanguageService {
         word,
         definition: 'Definition not available',
         grammarRole: 'Unknown',
-        examples: ['No examples available']
+        examples: ['No examples available'],
+        allDefinitions: [],
+        partOfSpeech: 'Unknown'
       };
     }
   }
@@ -197,7 +199,11 @@ export class LanguageService {
           examples: [
             `Example sentence using "${word}".`,
             `Another example with "${word}".`
-          ]
+          ],
+          allDefinitions: [`Example definition for "${word}" in ${targetLanguage}`],
+          partOfSpeech: word.endsWith('ar') || word.endsWith('er') || word.endsWith('ir') 
+            ? 'Verb' 
+            : 'Noun'
         });
       }, 500);
     });

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useUserProfile, UseUserProfileReturn } from '../services/UserProfileService'; 
 import { DynamicVariables } from '../types/dynamicVariables'; 

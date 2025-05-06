@@ -55,6 +55,29 @@ export const useSupabaseChat = () => {
   });
   const [isSupabaseInitialized, setIsSupabaseInitialized] = useState(false);
   
+  // Debug function to check JWT claims
+  const debugJwtClaims = useCallback(async () => {
+    try {
+      if (!userId) return null;
+      
+      const token = await getToken();
+      if (!token) return null;
+      
+      const client = createBrowserClient(token);
+      const { data, error } = await client.rpc('debug_jwt_claims');
+      
+      console.log('JWT claims as seen by Supabase:', data);
+      if (error) {
+        console.error('Error getting JWT claims:', error);
+      }
+      
+      return data;
+    } catch (e) {
+      console.error('Error debugging JWT claims:', e);
+      return null;
+    }
+  }, [userId, getToken]);
+  
   // Helper function to get token and create client
   const getAuthClient = useCallback(async () => {
     if (!userId) return null;
@@ -97,16 +120,23 @@ export const useSupabaseChat = () => {
         console.log('No session token available from Clerk, running in local mode');
         return false;
       }
+
+      // Log JWT token for debugging
+      console.log('JWT Token structure:', {
+        tokenSubstring: token.substring(0, 20) + '...',
+        tokenLength: token.length
+      });
       
       // Create a test client to verify the token works
       const testClient = createBrowserClient(token);
       
-      // Test the authentication with a simple query that doesn't rely on UUIDs
-      const { error } = await testClient
+      // Test the authentication with a simple query
+      const { data, error } = await testClient
         .from('chats')
-        .select('count')
-        .eq('user_id', userId)
-        .limit(1);
+        .select('count');
+      
+      // Log the result for debugging
+      console.log('Test query result:', { data, error });
       
       if (error) {
         console.error('Supabase auth error:', error);
@@ -115,6 +145,10 @@ export const useSupabaseChat = () => {
       
       console.log('Supabase initialized successfully with Clerk token');
       setIsSupabaseInitialized(true);
+      
+      // Check JWT claims for debugging
+      await debugJwtClaims();
+      
       return true;
     } catch (error) {
       console.error('Supabase initialization error:', error);
@@ -123,7 +157,10 @@ export const useSupabaseChat = () => {
   };
 
   const createUserProfile = async (userData: { email: string }) => {
-    if (!userId) return null;
+    if (!userId || !userData.email) {
+      console.log('Missing user ID or email, cannot create profile');
+      return null;
+    }
     
     try {
       if (!isSupabaseInitialized) {
@@ -142,39 +179,19 @@ export const useSupabaseChat = () => {
       // Create authenticated client
       const client = createBrowserClient(token);
 
-      // First check if the profile already exists
-      const { data: existingProfile, error: checkError } = await client
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (!checkError && existingProfile) {
-        console.log('User profile already exists, not creating a new one');
-        return existingProfile;
-      }
-      
-      // Create a minimal insert with only required fields
-      const insertData = {
-        user_id: userId,  // This is a TEXT field in the database
-        email: userData.email || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      console.log('Creating new user profile with user_id:', userId);
-      
-      const { data, error } = await client
-        .from('user_profiles')
-        .insert(insertData)
-        .select()
-        .single();
+      // Use the RPC function we created in the SQL
+      console.log('Using get_or_create_profile RPC with email:', userData.email);
+      const { data, error } = await client.rpc('get_or_create_profile', {
+        p_user_id: userId,
+        p_email: userData.email
+      });
       
       if (error) {
-        console.error('Error creating user profile:', error);
+        console.error('Error creating/retrieving user profile:', error);
         return null;
       }
       
+      console.log('Profile created or retrieved successfully:', data);
       return data;
     } catch (error) {
       console.error('Error creating user profile:', error);
@@ -185,6 +202,95 @@ export const useSupabaseChat = () => {
   const createNewChat = async (firstMessage?: EnhancedConversationItem): Promise<string> => {
     try {
       const now = new Date();
+      console.log('Creating new chat with user ID:', userId);
+      
+      // If using Supabase
+      if (userId && isSupabaseInitialized) {
+        try {
+          console.log('Attempting to create chat in Supabase');
+          const authClient = await getAuthClient();
+          if (!authClient) {
+            throw new Error('Failed to create authenticated client');
+          }
+          
+          // Get user email from userData
+          const userEmail = firstMessage?.formatted?.userEmail || '';
+          
+          // Log the chat data before insertion
+          const chatData = {
+            title: 'New Chat',
+            subtitle: firstMessage
+              ? (typeof firstMessage.content === 'string'
+                ? firstMessage.content.substring(0, 50) + (firstMessage.content.length > 50 ? '...' : '')
+                : 'New conversation')
+              : 'Empty conversation',
+            created_at: now.toISOString(),
+            updated_at: now.toISOString(),
+            unread: 0,
+            is_archived: false,
+            user_id: userId,
+            last_message: firstMessage
+              ? (typeof firstMessage.content === 'string'
+                ? firstMessage.content
+                : 'Message sent')
+              : ''
+          };
+          
+          console.log('Chat data to insert:', chatData);
+          
+          // Insert the chat
+          const { data: chatRecord, error: chatError } = await authClient
+            .from('chats')
+            .insert(chatData)
+            .select()
+            .single();
+          
+          // Log the result
+          console.log('Chat insertion result:', { chatRecord, chatError });
+          
+          if (chatError) {
+            console.error('Chat insertion error:', chatError);
+            throw chatError;
+          }
+          
+          // If there's a first message, add it
+          if (firstMessage && chatRecord.id) {
+            console.log('Adding first message to chat:', chatRecord.id);
+            const messageContent = typeof firstMessage.content === 'string' 
+              ? firstMessage.content 
+              : JSON.stringify(firstMessage.content);
+            
+            const messageData = {
+              chat_id: chatRecord.id,
+              content: messageContent,
+              role: firstMessage.role,
+              created_at: now.toISOString()
+            };
+            
+            console.log('Message data to insert:', messageData);
+            
+            const { data: messageRecord, error: messageError } = await authClient
+              .from('messages')
+              .insert(messageData)
+              .select();
+            
+            console.log('Message insertion result:', { messageRecord, messageError });
+            
+            if (messageError) {
+              console.warn('Failed to save first message:', messageError);
+            }
+          }
+          
+          console.log('Chat created in Supabase with ID:', chatRecord.id);
+          return chatRecord.id;
+        } catch (error) {
+          console.warn('Supabase save failed, falling back to local storage:', error);
+          // Continue with local storage fallback
+        }
+      } else {
+        console.log('Using local storage fallback (Supabase not initialized or no user ID)');
+      }
+      
       const chatData: Chat = {
         id: `local-${Date.now()}`,
         title: 'New Chat',
@@ -209,63 +315,6 @@ export const useSupabaseChat = () => {
             : ''
       };
 
-      // Try to use Supabase if initialized
-      if (userId && isSupabaseInitialized) {
-        try {
-          const authClient = await getAuthClient();
-          if (!authClient) {
-            throw new Error('Failed to create authenticated client');
-          }
-          
-          // 1. Insert into chats table
-          const { data: chatRecord, error: chatError } = await authClient
-            .from('chats')
-            .insert({
-              title: chatData.title,
-              subtitle: chatData.subtitle,
-              created_at: now.toISOString(),
-              updated_at: now.toISOString(),
-              unread: 0,
-              is_archived: false,
-              user_id: userId,
-              last_message: chatData.lastMessage
-            })
-            .select()
-            .single();
-          
-          if (chatError) {
-            throw chatError;
-          }
-          
-          // 2. If there's a first message, add it to messages table
-          if (firstMessage && chatRecord.id) {
-            const messageContent = typeof firstMessage.content === 'string' 
-              ? firstMessage.content 
-              : JSON.stringify(firstMessage.content);
-                
-            const { error: messageError } = await authClient
-              .from('messages')
-              .insert({
-                chat_id: chatRecord.id,
-                content: messageContent,
-                role: firstMessage.role,
-                created_at: now.toISOString()
-              });
-              
-            if (messageError) {
-              console.warn('Failed to save first message:', messageError);
-            }
-          }
-          
-          console.log('Chat created in Supabase with ID:', chatRecord.id);
-          return chatRecord.id;
-        } catch (error) {
-          console.warn('Supabase save failed, falling back to local storage:', error);
-          // Continue with local storage fallback
-        }
-      }
-      
-      // Local storage fallback
       const updatedChats = [...localChats, chatData];
       setLocalChats(updatedChats);
       localStorage.setItem('localChats', JSON.stringify(updatedChats));
@@ -699,6 +748,7 @@ export const useSupabaseChat = () => {
     markChatAsRead,
     deleteChat,
     renameChat,
+    debugJwtClaims,
     isSupabaseInitialized
   };
-}; 
+};

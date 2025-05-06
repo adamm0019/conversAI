@@ -10,33 +10,40 @@ import { Notifications } from '@mantine/notifications';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
-import { useSupabaseChat } from './lib/supabase/supabaseClient';
+import { useFirebaseChatService } from './services/FirebaseChatService';
 import { ProfileProvider } from './contexts/ProfileContext'; 
 import { LanguageInspectorExample } from './components/LanguageInspector/ExampleUsage';
 
 function App() {
   const { user, isLoaded } = useUser();
-  const { initializeSupabase, createUserProfile, isSupabaseInitialized } = useSupabaseChat();
+  const { createUserProfile } = useFirebaseChatService();
   const [initializationAttempted, setInitializationAttempted] = useState(false);
+  const [authTimeoutReached, setAuthTimeoutReached] = useState(false);
+
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const authTimeout = setTimeout(() => {
+      if (!isLoaded) {
+        console.warn("Authentication loading timed out, proceeding with application");
+        setAuthTimeoutReached(true);
+      }
+    }, 8000); // 8 seconds timeout
+
+    return () => clearTimeout(authTimeout);
+  }, [isLoaded]);
 
   useEffect(() => {
     const initUser = async () => {
       if (user) {
         try {
-          // Initialize Supabase with native Clerk integration
-          const isInitialized = await initializeSupabase();
-          if (isInitialized) {
-            await createUserProfile({
-              email: user.primaryEmailAddress?.emailAddress || '',
-            });
-            console.log('Supabase initialized and user profile created');
-          } else {
-            console.log('Running in local-only mode');
-            // Continue without Supabase, we'll use localStorage fallbacks
-          }
+          // Create Firebase user profile for the authenticated user
+          await createUserProfile({
+            email: user.primaryEmailAddress?.emailAddress || '',
+          });
+          console.log('Firebase user profile created');
         } catch (error) {
-          console.error('Failed to initialize Supabase:', error);
-          // Continue without Supabase, we'll use localStorage fallbacks
+          console.error('Failed to initialize Firebase profile:', error);
+          // Continue with localStorage fallbacks
         } finally {
           setInitializationAttempted(true);
         }
@@ -45,14 +52,10 @@ function App() {
       }
     };
 
-    if (isLoaded && !initializationAttempted) {
+    if ((isLoaded || authTimeoutReached) && !initializationAttempted) {
       initUser();
     }
-  }, [user, isLoaded, initializationAttempted, initializeSupabase, createUserProfile]);
-
-  if (!isLoaded) {
-    return <div>Loading...</div>;
-  }
+  }, [user, isLoaded, authTimeoutReached, initializationAttempted, createUserProfile]);
 
   return (
       <BrowserRouter>

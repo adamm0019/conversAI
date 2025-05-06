@@ -10,6 +10,7 @@ export interface FormattedItem {
   transcript?: string;
   audio?: Int16Array;
   output?: string;
+  userEmail?: string;
   file?: {
     url: string;
   };
